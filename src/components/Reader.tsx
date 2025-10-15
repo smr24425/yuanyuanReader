@@ -17,7 +17,7 @@ import {
   MAX_FONT_SIZE,
   clamp as clampFromStorage,
 } from "../utils/storage";
-import "./reader.css";
+import "./Reader.css";
 
 interface Chapter {
   title: string;

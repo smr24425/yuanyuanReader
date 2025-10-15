@@ -9,7 +9,7 @@ import { NavBar, Toast } from "antd-mobile";
 import { db } from "../db/indexedDB";
 import ChapterMenu from "./ChapterMenu";
 import { useReadingProgress } from "../hooks/useReadingProgress";
-import "./reader.css";
+import "./Reader.css";
 
 interface Chapter {
   title: string;
