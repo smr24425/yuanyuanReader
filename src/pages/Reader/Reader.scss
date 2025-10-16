@@ -1,12 +1,11 @@
 .reader-header {
   position: fixed;
-  top: -45px;
   width: 100%;
   background-color: rgba(0, 0, 0, 0.7);
   color: #fff;
   border-bottom: none !important;
   z-index: 20;
-  transition: top 0.2s ease;
+  transition: top 0.5s ease;
 
   .adm-nav-bar-left {
     color: #fff !important;
@@ -15,11 +14,14 @@
   &.open {
     top: 0;
   }
+
+  &.close {
+    top: -45px;
+  }
 }
 
 .reader-footer {
   position: fixed;
-  bottom: -118px;
   width: 100%;
   background-color: rgba(0, 0, 0, 0.7);
   color: #fff;
@@ -29,10 +31,14 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: bottom 0.2s ease;
+  transition: bottom 0.5s ease;
 
   &.open {
     bottom: 0;
+  }
+
+  &.close {
+    bottom: -118px;
   }
 
   &__progress {

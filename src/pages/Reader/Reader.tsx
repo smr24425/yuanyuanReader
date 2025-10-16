@@ -439,7 +439,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
     >
       <NavBar
         onBack={onClose}
-        className={`reader-header ${showUI ? "open" : ""}`}
+        className={`reader-header ${showUI ? "open" : "close"}`}
         backArrow={<span style={{ color: "#fff" }}>←</span>}
       >
         閱讀
@@ -517,7 +517,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
 
       {/* footer */}
       <footer
-        className={`reader-footer  ${showUI ? "open" : ""}`}
+        className={`reader-footer  ${showUI ? "open" : "close"}`}
         onClick={(e) => {
           e.stopPropagation();
         }}
