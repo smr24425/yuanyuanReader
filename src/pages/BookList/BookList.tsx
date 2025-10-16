@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Toast, ProgressBar, Dialog, NavBar, Badge, Popup } from "antd-mobile";
-import { db } from "../../db/indexedDB";
+import { db, type Book } from "../../db/indexedDB";
 import { parseChapters } from "../../utils/txtParser";
 import { readFileWithEncodingFallback } from "../../utils/readFileWithEncodingFallback";
 import { AddOutline, CloseOutline, CheckOutline } from "antd-mobile-icons";
@@ -9,19 +9,6 @@ import Reader from "../Reader/Reader";
 import BookEditor from "../BookEditor/BookEditor";
 import { FiEdit, FiTrash2, FiShare2 } from "react-icons/fi";
 import { downloadTxT } from "../../utils/common";
-
-interface Book {
-  id?: number;
-  title: string;
-  content: string;
-  // 舊欄位（像素）：仍保留相容
-  progress?: number;
-  // 新欄位（建議 Reader.tsx onScroll 持續寫入）
-  percent?: number; // 0~100
-  totalScrollablePx?: number;
-  progressPx?: number;
-  chapters: { title: string; index: number }[];
-}
 
 const LONG_PRESS_MS = 500;
 
@@ -38,7 +25,8 @@ const BookList: React.FC = () => {
   const [editBookId, setEditBookId] = useState<number | null>(null);
 
   const loadBooks = async () => {
-    const allBooks = await db.books.toArray();
+    const allBooks = await db.books.toCollection().sortBy("lookedAt");
+    allBooks.reverse();
     setBooks(allBooks as Book[]);
   };
 
@@ -89,6 +77,7 @@ const BookList: React.FC = () => {
         totalScrollablePx: 0,
         progressPx: 0,
         chapters,
+        lookedAt: Date.now(),
       });
 
       Toast.show({ content: "書籍上傳成功", icon: "success" });
@@ -173,11 +162,11 @@ const BookList: React.FC = () => {
     if (
       typeof book.totalScrollablePx === "number" &&
       book.totalScrollablePx > 0 &&
-      typeof book.progress === "number"
+      typeof book.progressPx === "number"
     ) {
       return Math.min(
         100,
-        Math.round((book.progress / book.totalScrollablePx) * 100)
+        Math.round((book.progressPx / book.totalScrollablePx) * 100)
       );
     }
     return 0;
@@ -279,6 +268,17 @@ const BookList: React.FC = () => {
                   style={{ "--track-width": "4px" }}
                 />
                 <span>{`已閱讀 ${readPercent}%`}</span>
+                {book.lookedAt && (
+                  <div className="book-looked-at">
+                    {new Date(book.lookedAt).toLocaleString("zh-TW", {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           );

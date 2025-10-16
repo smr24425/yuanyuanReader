@@ -98,6 +98,13 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
     };
   }, [bookId, onClose]);
 
+  useEffect(() => {
+    if (!bookId) return;
+    db.books.update(bookId, {
+      lookedAt: Date.now(),
+    });
+  }, [bookId]);
+
   const paragraphs = useMemo(() => {
     if (!book) return [] as { text: string; chapterIndex: number | null }[];
 

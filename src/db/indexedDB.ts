@@ -10,16 +10,13 @@ export interface Book {
   totalScrollablePx?: number;
   percent?: number; // 0~100
   updatedAt?: number;
+  lookedAt: number;
 }
 
 class MyDB extends Dexie {
   books!: Table<Book, number>;
   constructor() {
     super("mydb");
-
-    // 舊版…
-    // this.version(1).stores({ books: '++id,title' });
-
     // 版本升級：新增欄位不用變 index 定義即可寫入
     this.version(2)
       .stores({
@@ -31,6 +28,7 @@ class MyDB extends Dexie {
           .toCollection()
           .modify((b: any) => {
             if (b.percent === undefined) b.percent = 0;
+            if (b.lookedAt === undefined) b.lookedAt = 0;
           });
       });
   }
