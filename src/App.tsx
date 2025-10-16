@@ -1,5 +1,5 @@
 // src/App.tsx
-import Footer from "./components/footer";
+import Footer from "./components/Footer";
 import BookList from "./pages/BookList/BookList";
 import { SafeArea } from "antd-mobile";
 
