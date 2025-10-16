@@ -1,9 +1,20 @@
 import React, { useEffect, useState } from "react";
+import { setReaderBgColor, setReaderTextColor } from "../../utils/storage";
 
 interface ReaderFooterBgColorProps {
   bgColor: string;
   textColor: string;
   onChange: (bgColor: string, textColor: string) => void;
+}
+
+function updateThemeColor(color: string) {
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute("content", color);
 }
 
 const ReaderFooterBgColor: React.FC<ReaderFooterBgColorProps> = ({
@@ -33,6 +44,9 @@ const ReaderFooterBgColor: React.FC<ReaderFooterBgColorProps> = ({
 
   function onConfirm() {
     onChange(tempBg, tempText);
+    setReaderBgColor(tempBg);
+    setReaderTextColor(tempText);
+    updateThemeColor(tempBg);
     setIsOpen(false);
   }
 
