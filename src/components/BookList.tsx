@@ -1,25 +1,13 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import {
-  Toast,
-  ProgressBar,
-  Dialog,
-  NavBar,
-  Checkbox,
-  Badge,
-  Popup,
-} from "antd-mobile";
-import { useNavigate } from "react-router-dom";
+import { Toast, ProgressBar, Dialog, NavBar, Badge, Popup } from "antd-mobile";
 import { db } from "../db/indexedDB";
 import { parseChapters } from "../utils/txtParser";
 import { readFileWithEncodingFallback } from "../utils/readFileWithEncodingFallback";
-import {
-  AddOutline,
-  DeleteOutline,
-  CloseOutline,
-  CheckOutline,
-} from "antd-mobile-icons";
-import "./BookList.css";
-import Reader from "./Reader";
+import { AddOutline, CloseOutline, CheckOutline } from "antd-mobile-icons";
+import "./BookList.scss";
+import Reader from "./Reader/Reader";
+import BookEditor from "./BookEditor";
+import { FiEdit, FiTrash2, FiShare2 } from "react-icons/fi";
 
 interface Book {
   id?: number;
@@ -44,6 +32,9 @@ const BookList: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [readerOpen, setReaderOpen] = useState(false);
   const [activeBookId, setActiveBookId] = useState<number | null>(null);
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editBookId, setEditBookId] = useState<number | null>(null);
 
   const loadBooks = async () => {
     const allBooks = await db.books.toArray();
@@ -295,28 +286,65 @@ const BookList: React.FC = () => {
 
       {/* ===== 底部刪除列（選取模式顯示） ===== */}
       {selectMode && (
-        <div
-          style={{
-            position: "fixed",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 56,
-            background: "#fff",
-            borderTop: "1px solid #eee",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            zIndex: 10,
-            color: "red",
-          }}
-          onClick={handleDelete}
-          role="button"
-          aria-label="刪除"
-        >
-          <DeleteOutline fontSize={20} color="red" />
-          <span>刪除</span>
+        <div className="bottom-action-bar">
+          {selectedIds.size === 1 && (
+            <button
+              className="action-btn edit-btn"
+              onClick={() => {
+                const onlyId = Array.from(selectedIds)[0];
+                setEditBookId(onlyId);
+                setEditModalOpen(true);
+              }}
+              aria-label="編輯"
+            >
+              <FiEdit />
+              <span>編輯</span>
+            </button>
+          )}
+
+          <button
+            className="action-btn share-btn"
+            onClick={() => {
+              if (selectedIds.size === 0) {
+                Toast.show({ content: "請先選取要分享的書籍" });
+                return;
+              }
+              const shareIds = Array.from(selectedIds);
+              const shareBooks = books.filter(
+                (b) => b.id && shareIds.includes(b.id)
+              );
+              const shareTitles = shareBooks.map((b) => b.title).join(", ");
+
+              if (navigator.share) {
+                navigator
+                  .share({
+                    title: "分享我的書籍",
+                    text: `我正在讀這些書：${shareTitles}`,
+                  })
+                  .then(() => {
+                    Toast.show({ content: "分享成功", icon: "success" });
+                  })
+                  .catch(() => {
+                    Toast.show({ content: "分享失敗", icon: "fail" });
+                  });
+              } else {
+                Toast.show({ content: "瀏覽器不支援分享功能", icon: "fail" });
+              }
+            }}
+            aria-label="分享"
+          >
+            <FiShare2 />
+            <span>分享</span>
+          </button>
+
+          <button
+            className="action-btn delete-btn"
+            onClick={handleDelete}
+            aria-label="刪除"
+          >
+            <FiTrash2 />
+            <span>刪除</span>
+          </button>
         </div>
       )}
 
@@ -340,6 +368,33 @@ const BookList: React.FC = () => {
             onClose={() => {
               closeReader();
               loadBooks();
+            }}
+          />
+        )}
+      </Popup>
+
+      {/* 編輯書籍的彈窗 */}
+      <Popup
+        visible={editModalOpen}
+        onMaskClick={() => setEditModalOpen(false)}
+        onClose={() => setEditModalOpen(false)}
+        destroyOnClose
+        showCloseButton={false}
+        bodyStyle={{
+          height: "100vh",
+          width: "100vw",
+          padding: 0,
+          background: "#fff",
+        }}
+      >
+        {editBookId != null && (
+          <BookEditor
+            bookId={editBookId}
+            onClose={() => {
+              setEditModalOpen(false);
+              setEditBookId(null);
+              loadBooks(); // 儲存後刷新書籍列表
+              exitSelectMode(); // 離開選取模式
             }}
           />
         )}

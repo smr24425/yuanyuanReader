@@ -1,7 +1,13 @@
 // src/App.tsx
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 import BookList from "./components/BookList";
+import { SafeArea } from "antd-mobile";
 
-const App = () => <BookList />;
+const App = () => (
+  <>
+    <SafeArea position="top" />
+    <BookList />
+    <SafeArea position="bottom" />
+  </>
+);
 
 export default App;

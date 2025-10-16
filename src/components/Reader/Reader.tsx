@@ -6,18 +6,20 @@ import React, {
   useCallback,
 } from "react";
 import { NavBar, Toast } from "antd-mobile";
-import { db } from "../db/indexedDB";
-import ChapterMenu from "./ChapterMenu";
-import { useReadingProgress } from "../hooks/useReadingProgress";
+import { db } from "../../db/indexedDB";
+import ChapterMenu from "../ChapterMenu";
+import { useReadingProgress } from "../../hooks/useReadingProgress";
 import {
   getReaderFontSize,
   setReaderFontSize,
-  DEFAULT_FONT_SIZE,
   MIN_FONT_SIZE,
   MAX_FONT_SIZE,
   clamp as clampFromStorage,
-} from "../utils/storage";
-import "./Reader.css";
+  getReaderBgColor,
+  getReaderTextColor,
+} from "../../utils/storage";
+import "./Reader.scss";
+import ReaderFooterBgColor from "./ReaderFooterBgColor";
 
 interface Chapter {
   title: string;
@@ -36,7 +38,6 @@ interface ReaderProps {
   onClose: () => void;
 }
 
-const AVG_CHAR_WIDTH_PX = DEFAULT_FONT_SIZE;
 const VIEWPORT_HEIGHT = window.innerHeight - 44;
 const BUFFER = 3;
 
@@ -52,6 +53,9 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const [showUI, setShowUI] = useState(false);
 
   const [fontSize, setFontSize] = useState<number>(() => getReaderFontSize());
+  const [bgColor, setBgColor] = useState(getReaderBgColor());
+  const [textColor, setTextColor] = useState(getReaderTextColor());
+
   const lineHeight = useMemo(() => Math.round(fontSize * 1.7), [fontSize]);
 
   useEffect(() => {
@@ -62,6 +66,19 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const [readingIndex, setReadingIndex] = useState<number | null>(null);
   const isReadingRef = useRef(false);
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // 監聽 localStorage 更新（如果你想監控外部改變，可以加事件listener）
+  useEffect(() => {
+    function onStorageChange(e: StorageEvent) {
+      if (e.key === "reader.bgColor") {
+        setBgColor(e.newValue || "#000000");
+      } else if (e.key === "reader.textColor") {
+        setTextColor(e.newValue || "#ffffff");
+      }
+    }
+    window.addEventListener("storage", onStorageChange);
+    return () => window.removeEventListener("storage", onStorageChange);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -408,12 +425,14 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       style={{
         position: "fixed",
         inset: 0,
-        background: "#fff",
+        // background: "#fff",
         display: "flex",
         flexDirection: "column",
         overscrollBehavior: "contain",
         touchAction: "pan-y",
         userSelect: "none",
+        backgroundColor: bgColor,
+        color: textColor,
       }}
       className="aaa"
       onClick={toggleUI}
@@ -423,25 +442,6 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
           onBack={onClose}
           className="reader-header"
           backArrow={<span style={{ color: "#fff" }}>←</span>}
-          right={
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowMenu(true);
-              }}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#fff",
-                fontSize: 24,
-                cursor: "pointer",
-                padding: 4,
-              }}
-              aria-label="目錄"
-            >
-              ☰
-            </button>
-          }
         >
           閱讀
         </NavBar>
@@ -539,26 +539,58 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
             <button onClick={goToNextChapter}>下一章</button>
           </div>
 
-          <div className="reader-footer__font-size">
+          <div className="system-and-chapter">
             <button
-              onClick={() =>
-                setFontSize((size) =>
-                  clampFromStorage(size - 1, MIN_FONT_SIZE, MAX_FONT_SIZE)
-                )
-              }
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMenu(true);
+              }}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#fff",
+                fontSize: 24,
+                cursor: "pointer",
+                padding: 4,
+              }}
+              aria-label="目錄"
             >
-              A-
+              ☰
             </button>
-            <span>{fontSize}px</span>
-            <button
-              onClick={() =>
-                setFontSize((size) =>
-                  clampFromStorage(size + 1, MIN_FONT_SIZE, MAX_FONT_SIZE)
-                )
-              }
-            >
-              A+
-            </button>
+            <div className="system">
+              <button
+                onClick={() =>
+                  setFontSize((size) =>
+                    clampFromStorage(size - 1, MIN_FONT_SIZE, MAX_FONT_SIZE)
+                  )
+                }
+              >
+                A-
+              </button>
+              <span>{fontSize}px</span>
+              <button
+                onClick={() =>
+                  setFontSize((size) =>
+                    clampFromStorage(size + 1, MIN_FONT_SIZE, MAX_FONT_SIZE)
+                  )
+                }
+              >
+                A+
+              </button>
+
+              {/* 新增背景顏色控制 */}
+              <ReaderFooterBgColor
+                bgColor={bgColor}
+                textColor={textColor}
+                onChange={(
+                  newBg: React.SetStateAction<string>,
+                  newText: React.SetStateAction<string>
+                ) => {
+                  setBgColor(newBg);
+                  setTextColor(newText);
+                }}
+              />
+            </div>
           </div>
         </footer>
       )}

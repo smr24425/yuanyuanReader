@@ -1,0 +1,114 @@
+.book-list-container {
+  padding: 16px;
+  background-color: #f7f7f7;
+  min-height: 100vh;
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .book-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+
+    .book-card {
+      background-color: #ffffff;
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      height: 200px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s ease;
+      overflow: hidden;
+      position: relative;
+
+      &.select-mode {
+        border: 1px solid #eee;
+      }
+
+      &.selected {
+        outline: 2px solid var(--adm-color-primary);
+        outline-offset: 0;
+      }
+
+      .book-title {
+        font-weight: 600;
+        font-size: 16px;
+        line-height: 1.4;
+        word-break: break-word;
+        overflow: auto;
+        flex-grow: 1;
+        margin-bottom: 8px;
+      }
+
+      .book-progress {
+        margin-top: 8px;
+        font-size: 14px;
+        color: #888;
+      }
+    }
+  }
+
+  .bottom-action-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 56px;
+    background: #fff;
+    border-top: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 24px;
+    z-index: 10;
+    color: #333;
+    padding: 0 16px;
+    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.1);
+
+    .action-btn {
+      all: unset;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 24px;
+      color: #333;
+      user-select: none;
+      transition: color 0.2s ease;
+
+      span {
+        font-size: 12px;
+        margin-top: 2px;
+      }
+
+      &:hover {
+        color: #1677ff;
+      }
+
+      &.edit-btn {
+        color: #1677ff;
+      }
+
+      &.share-btn {
+        color: #1c7c54;
+      }
+
+      &.delete-btn {
+        color: red;
+      }
+
+      &:focus {
+        outline: 2px solid #1677ff;
+        outline-offset: 2px;
+      }
+    }
+  }
+}

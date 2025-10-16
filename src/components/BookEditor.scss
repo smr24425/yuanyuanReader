@@ -1,0 +1,94 @@
+.book-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+
+  .title-input-wrapper {
+    padding: 8px 16px;
+    border-bottom: 1px solid #ddd;
+
+    .title-input {
+      width: 100%;
+      font-size: 18px;
+      padding: 6px 8px;
+      box-sizing: border-box;
+    }
+  }
+
+  .search-replace-wrapper {
+    padding: 8px 16px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .search-wrapper {
+      display: flex;
+      gap: 4px;
+
+      button {
+        width: 34px;
+        font-size: 14px;
+      }
+    }
+
+    .search-input,
+    .replace-input {
+      width: 100%;
+      padding: 6px 8px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+
+    .search-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-start;
+
+      button {
+        background-color: #1677ff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-size: 14px;
+        user-select: none;
+
+        &:disabled {
+          background-color: #ccc;
+          cursor: not-allowed;
+        }
+      }
+    }
+
+    .replace-all-btn {
+      background-color: #1677ff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 14px;
+      user-select: none;
+
+      &:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .content-textarea {
+    flex: 1;
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+    line-height: 24px;
+    box-sizing: border-box;
+    border: none;
+    resize: none;
+    outline: none;
+    font-family: "Noto Sans TC", sans-serif;
+  }
+}
