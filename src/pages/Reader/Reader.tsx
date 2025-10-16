@@ -20,6 +20,7 @@ import {
 } from "../../utils/storage";
 import "./Reader.scss";
 import ReaderFooterBgColor from "./ReaderFooterBgColor";
+import { FiHeadphones } from "react-icons/fi";
 
 interface Chapter {
   title: string;
@@ -434,18 +435,15 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
         backgroundColor: bgColor,
         color: textColor,
       }}
-      className="aaa"
       onClick={toggleUI}
     >
-      {showUI && (
-        <NavBar
-          onBack={onClose}
-          className="reader-header"
-          backArrow={<span style={{ color: "#fff" }}>←</span>}
-        >
-          閱讀
-        </NavBar>
-      )}
+      <NavBar
+        onBack={onClose}
+        className={`reader-header ${showUI ? "open" : ""}`}
+        backArrow={<span style={{ color: "#fff" }}>←</span>}
+      >
+        閱讀
+      </NavBar>
 
       <ChapterMenu
         visible={showMenu}
@@ -518,102 +516,98 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       </div>
 
       {/* footer */}
-      {showUI && (
-        <footer
-          className="reader-footer"
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-        >
-          <div className="reader-footer__progress">
-            <button onClick={goToPrevChapter}>上一章</button>
+      <footer
+        className={`reader-footer  ${showUI ? "open" : ""}`}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <div className="reader-footer__progress">
+          <button onClick={goToPrevChapter}>上一章</button>
 
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={progressForDisplay}
-              onChange={handleProgressChange}
-            />
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={progressForDisplay}
+            onChange={handleProgressChange}
+          />
 
-            <button onClick={goToNextChapter}>下一章</button>
-          </div>
+          <button onClick={goToNextChapter}>下一章</button>
+        </div>
 
-          <div className="system-and-chapter">
+        <div className="system-and-chapter">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(true);
+            }}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#fff",
+              fontSize: 24,
+              cursor: "pointer",
+              padding: 4,
+            }}
+            aria-label="目錄"
+          >
+            ☰
+          </button>
+          <div className="system">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowMenu(true);
-              }}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#fff",
-                fontSize: 24,
-                cursor: "pointer",
-                padding: 4,
-              }}
-              aria-label="目錄"
+              onClick={() =>
+                setFontSize((size) =>
+                  clampFromStorage(size - 1, MIN_FONT_SIZE, MAX_FONT_SIZE)
+                )
+              }
             >
-              ☰
+              A-
             </button>
-            <div className="system">
-              <button
-                onClick={() =>
-                  setFontSize((size) =>
-                    clampFromStorage(size - 1, MIN_FONT_SIZE, MAX_FONT_SIZE)
-                  )
-                }
-              >
-                A-
-              </button>
-              <span>{fontSize}px</span>
-              <button
-                onClick={() =>
-                  setFontSize((size) =>
-                    clampFromStorage(size + 1, MIN_FONT_SIZE, MAX_FONT_SIZE)
-                  )
-                }
-              >
-                A+
-              </button>
+            <span>{fontSize}px</span>
+            <button
+              onClick={() =>
+                setFontSize((size) =>
+                  clampFromStorage(size + 1, MIN_FONT_SIZE, MAX_FONT_SIZE)
+                )
+              }
+            >
+              A+
+            </button>
 
-              {/* 新增背景顏色控制 */}
-              <ReaderFooterBgColor
-                bgColor={bgColor}
-                textColor={textColor}
-                onChange={(
-                  newBg: React.SetStateAction<string>,
-                  newText: React.SetStateAction<string>
-                ) => {
-                  setBgColor(newBg);
-                  setTextColor(newText);
-                }}
-              />
-            </div>
+            {/* 新增背景顏色控制 */}
+            <ReaderFooterBgColor
+              bgColor={bgColor}
+              textColor={textColor}
+              onChange={(
+                newBg: React.SetStateAction<string>,
+                newText: React.SetStateAction<string>
+              ) => {
+                setBgColor(newBg);
+                setTextColor(newText);
+              }}
+            />
           </div>
-        </footer>
-      )}
+        </div>
+      </footer>
 
       {/* === TTS：右下角入口（開啟朗讀面板） */}
-      <div
-        style={{
-          position: "fixed",
-          right: 16,
-          bottom: 84,
-          display: "flex",
-          gap: 8,
-          zIndex: 11,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          className="reader-tts-btn"
-          onClick={() => setShowTtsPanel(true)}
+      {showUI && (
+        <div
+          style={{
+            position: "fixed",
+            right: 16,
+            bottom: 126,
+            display: "flex",
+            zIndex: 11,
+          }}
+          onClick={(e) => e.stopPropagation()}
         >
-          🔈 朗讀控制
-        </button>
-      </div>
+          <div className="reader-tts-btn" onClick={() => setShowTtsPanel(true)}>
+            <FiHeadphones />
+          </div>
+        </div>
+      )}
 
       {/* === TTS：彈窗（暫停/繼續/停止/從本頁開始） */}
       {showTtsPanel && (
