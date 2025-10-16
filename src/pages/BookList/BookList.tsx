@@ -340,6 +340,7 @@ const BookList: React.FC = () => {
       )}
 
       <Popup
+        position="right" // 這裡設成 right，從右側滑入
         visible={readerOpen}
         onMaskClick={closeReader}
         onClose={closeReader}
