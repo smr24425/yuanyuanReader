@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Toast, ProgressBar, Dialog, NavBar, Badge, Popup } from "antd-mobile";
-import { db } from "../db/indexedDB";
-import { parseChapters } from "../utils/txtParser";
-import { readFileWithEncodingFallback } from "../utils/readFileWithEncodingFallback";
+import { db } from "../../db/indexedDB";
+import { parseChapters } from "../../utils/txtParser";
+import { readFileWithEncodingFallback } from "../../utils/readFileWithEncodingFallback";
 import { AddOutline, CloseOutline, CheckOutline } from "antd-mobile-icons";
 import "./BookList.scss";
-import Reader from "./Reader/Reader";
-import BookEditor from "./BookEditor";
+import Reader from "../Reader/Reader";
+import BookEditor from "../BookEditor/BookEditor";
 import { FiEdit, FiTrash2, FiShare2 } from "react-icons/fi";
-import { downloadTxT } from "../utils/common";
+import { downloadTxT } from "../../utils/common";
 
 interface Book {
   id?: number;

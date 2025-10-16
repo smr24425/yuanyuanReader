@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { NavBar, Toast } from "antd-mobile";
 import { db } from "../../db/indexedDB";
-import ChapterMenu from "../ChapterMenu";
+import ChapterMenu from "../../components/ChapterMenu";
 import { useReadingProgress } from "../../hooks/useReadingProgress";
 import {
   getReaderFontSize,

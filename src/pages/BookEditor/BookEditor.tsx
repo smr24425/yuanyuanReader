@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { NavBar, Toast } from "antd-mobile";
 import { CloseOutline, CheckOutline } from "antd-mobile-icons";
 import "./BookEditor.scss";
-import { db } from "../db/indexedDB";
+import { db } from "../../db/indexedDB";
 
 interface BookEditorProps {
   bookId: number;
