@@ -29,6 +29,7 @@ const ReaderFooterBgColor: React.FC<ReaderFooterBgColorProps> = ({
   useEffect(() => {
     setTempBg(bgColor);
     setTempText(textColor);
+    updateThemeColor(bgColor);
   }, [bgColor, textColor]);
 
   const PRESET_COLORS = [
@@ -46,7 +47,6 @@ const ReaderFooterBgColor: React.FC<ReaderFooterBgColorProps> = ({
     onChange(tempBg, tempText);
     setReaderBgColor(tempBg);
     setReaderTextColor(tempText);
-    updateThemeColor(tempBg);
     setIsOpen(false);
   }
 
