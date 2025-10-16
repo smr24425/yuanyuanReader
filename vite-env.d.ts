@@ -11,3 +11,5 @@ declare module "virtual:pwa-register" {
     options?: RegisterSWOptions
   ): (reloadPage?: boolean) => void;
 }
+
+declare const __APP_VERSION__: string;
