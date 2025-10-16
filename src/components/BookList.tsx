@@ -8,6 +8,7 @@ import "./BookList.scss";
 import Reader from "./Reader/Reader";
 import BookEditor from "./BookEditor";
 import { FiEdit, FiTrash2, FiShare2 } from "react-icons/fi";
+import { downloadTxT } from "../utils/common";
 
 interface Book {
   id?: number;
@@ -302,40 +303,30 @@ const BookList: React.FC = () => {
             </button>
           )}
 
-          <button
-            className="action-btn share-btn"
-            onClick={() => {
-              if (selectedIds.size === 0) {
-                Toast.show({ content: "請先選取要分享的書籍" });
-                return;
-              }
-              const shareIds = Array.from(selectedIds);
-              const shareBooks = books.filter(
-                (b) => b.id && shareIds.includes(b.id)
-              );
-              const shareTitles = shareBooks.map((b) => b.title).join(", ");
+          {selectedIds.size === 1 && (
+            <button
+              className="action-btn share-btn"
+              onClick={() => {
+                if (selectedIds.size === 0) {
+                  Toast.show({ content: "請先選取要分享的書籍" });
+                  return;
+                }
+                const selectedId = Array.from(selectedIds)[0];
+                const book = books.find((b) => b.id === selectedId);
 
-              if (navigator.share) {
-                navigator
-                  .share({
-                    title: "分享我的書籍",
-                    text: `我正在讀這些書：${shareTitles}`,
-                  })
-                  .then(() => {
-                    Toast.show({ content: "分享成功", icon: "success" });
-                  })
-                  .catch(() => {
-                    Toast.show({ content: "分享失敗", icon: "fail" });
-                  });
-              } else {
-                Toast.show({ content: "瀏覽器不支援分享功能", icon: "fail" });
-              }
-            }}
-            aria-label="分享"
-          >
-            <FiShare2 />
-            <span>分享</span>
-          </button>
+                if (!book) {
+                  Toast.show({ content: "找不到書籍", icon: "fail" });
+                  return;
+                }
+                downloadTxT(book.title, book.content);
+                Toast.show({ content: "分享成功", icon: "success" });
+              }}
+              aria-label="分享"
+            >
+              <FiShare2 />
+              <span>分享</span>
+            </button>
+          )}
 
           <button
             className="action-btn delete-btn"
