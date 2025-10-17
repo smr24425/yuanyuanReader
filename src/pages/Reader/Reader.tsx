@@ -21,6 +21,7 @@ import {
 import "./Reader.scss";
 import ReaderFooterBgColor from "./ReaderFooterBgColor";
 import { FiHeadphones } from "react-icons/fi";
+import { BsStopCircle } from "react-icons/bs";
 
 interface Chapter {
   title: string;
@@ -301,23 +302,6 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
     [paraOffsets, paraHeights, paragraphs.length]
   );
 
-  const [showTtsPanel, setShowTtsPanel] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-
-  const pauseReading = useCallback(() => {
-    try {
-      window.speechSynthesis.pause();
-      setIsPaused(true);
-    } catch {}
-  }, []);
-
-  const resumeReading = useCallback(() => {
-    try {
-      window.speechSynthesis.resume();
-      setIsPaused(false);
-    } catch {}
-  }, []);
-
   const chunkText = (text: string, maxLen = 180) => {
     const parts: string[] = [];
     const sentences = text.replace(/\s+/g, " ").split(/(?<=[。！？!?；;．.])/);
@@ -401,8 +385,6 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   );
 
   const startReadingFromScreenTop = useCallback(() => {
-    setShowTtsPanel(true);
-    setIsPaused(false);
     if (!paragraphs.length) return;
     try {
       window.speechSynthesis.cancel();
@@ -419,7 +401,6 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const stopReading = useCallback(() => {
     isReadingRef.current = false;
     setIsReading(false);
-    setIsPaused(false);
     try {
       if (currentUtteranceRef.current) {
         currentUtteranceRef.current.onend = null;
@@ -610,14 +591,30 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="reader-tts-btn" onClick={() => setShowTtsPanel(true)}>
-            <FiHeadphones />
-          </div>
+          {!isReading ? (
+            <div
+              className="reader-tts-btn"
+              onClick={() => {
+                startReadingFromScreenTop();
+              }}
+            >
+              <FiHeadphones />
+            </div>
+          ) : (
+            <div
+              className="reader-tts-btn"
+              onClick={() => {
+                stopReading();
+              }}
+            >
+              <BsStopCircle />
+            </div>
+          )}
         </div>
       )}
 
       {/* === TTS：彈窗（暫停/繼續/停止/從本頁開始） */}
-      {showTtsPanel && (
+      {/* {showTtsPanel && (
         <div className="tts-modal" onClick={(e) => e.stopPropagation()}>
           <div
             className="tts-modal__mask"
@@ -677,7 +674,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
