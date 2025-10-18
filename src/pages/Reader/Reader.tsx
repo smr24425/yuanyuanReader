@@ -143,7 +143,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
 
   useEffect(() => {
     if (!containerRef.current) return;
-    setContainerWidth(containerRef.current.clientWidth || 300);
+    setContainerWidth(containerRef.current.clientWidth - 16 || 300);
   }, [book]);
 
   function estimateParaHeight(text: string, width: number) {
