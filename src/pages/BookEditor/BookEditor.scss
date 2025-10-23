@@ -90,5 +90,7 @@
     resize: none;
     outline: none;
     font-family: "Noto Sans TC", sans-serif;
+    user-select: unset;
+    overflow: auto;
   }
 }
