@@ -7,16 +7,6 @@ interface ReaderFooterBgColorProps {
   onChange: (bgColor: string, textColor: string) => void;
 }
 
-function updateThemeColor(color: string) {
-  let meta = document.querySelector('meta[name="theme-color"]');
-  if (!meta) {
-    meta = document.createElement("meta");
-    meta.setAttribute("name", "theme-color");
-    document.head.appendChild(meta);
-  }
-  meta.setAttribute("content", color);
-}
-
 const ReaderFooterBgColor: React.FC<ReaderFooterBgColorProps> = ({
   bgColor,
   textColor,
@@ -29,7 +19,6 @@ const ReaderFooterBgColor: React.FC<ReaderFooterBgColorProps> = ({
   useEffect(() => {
     setTempBg(bgColor);
     setTempText(textColor);
-    updateThemeColor(bgColor);
   }, [bgColor, textColor]);
 
   const PRESET_COLORS = [

@@ -46,6 +46,16 @@ const BUFFER = 3;
 const clamp = (n: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, n));
 
+function updateThemeColor(color: string) {
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute("content", color);
+}
+
 const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const [book, setBook] = useState<Book | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -81,6 +91,10 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
     window.addEventListener("storage", onStorageChange);
     return () => window.removeEventListener("storage", onStorageChange);
   }, []);
+
+  useEffect(() => {
+    updateThemeColor(bgColor);
+  }, [bgColor]);
 
   useEffect(() => {
     let mounted = true;
