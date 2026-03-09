@@ -40,7 +40,7 @@ const BookList: React.FC = () => {
       books
         .map((b) => b.id!)
         .filter((id): id is number => typeof id === "number"),
-    [books]
+    [books],
   );
   const isAllSelected =
     allSelectableIds.length > 0 &&
@@ -132,6 +132,11 @@ const BookList: React.FC = () => {
       setPressTimer(null);
     }
   };
+  // 新增：處理觸摸移動
+  const handleTouchMove = () => {
+    // 只要使用者開始滑動螢幕，就代表這不是長按，清除計時器
+    clearPressTimer();
+  };
 
   // 替代 navigate 的行為
   const openReader = (bookId: number) => {
@@ -166,7 +171,7 @@ const BookList: React.FC = () => {
     ) {
       return Math.min(
         100,
-        Math.round((book.progressPx / book.totalScrollablePx) * 100)
+        Math.round((book.progressPx / book.totalScrollablePx) * 100),
       );
     }
     return 0;
@@ -240,6 +245,7 @@ const BookList: React.FC = () => {
               onMouseUp={clearPressTimer}
               onMouseLeave={clearPressTimer}
               onTouchStart={() => startPressTimer(book.id)}
+              onTouchMove={handleTouchMove}
               onTouchEnd={clearPressTimer}
             >
               {/* 右上角勾選徽章（選取模式顯示） */}
@@ -344,6 +350,7 @@ const BookList: React.FC = () => {
         visible={readerOpen}
         onMaskClick={closeReader}
         onClose={closeReader}
+        disableBodyScroll={false}
         // 全屏
         bodyStyle={{
           height: "100vh",
@@ -372,6 +379,7 @@ const BookList: React.FC = () => {
         onClose={() => setEditModalOpen(false)}
         destroyOnClose
         showCloseButton={false}
+        disableBodyScroll={false}
         bodyStyle={{
           height: "100vh",
           width: "100vw",

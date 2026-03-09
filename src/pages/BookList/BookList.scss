@@ -1,22 +1,23 @@
 .book-list-container {
-  padding: 16px;
   background-color: #f7f7f7;
-  // min-height: 100vh;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
 
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
+  .adm-nav-bar {
+    background-color: #f7f7f7;
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 99;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   }
 
   .book-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 16px;
+    padding: 16px;
 
     .book-card {
       background-color: #ffffff;

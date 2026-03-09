@@ -104,7 +104,7 @@ const BookEditor: React.FC<BookEditorProps> = ({ bookId, onClose }) => {
     // 使用正規表達式替換所有搜尋關鍵字（全局）
     const regex = new RegExp(
       searchKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-      "g"
+      "g",
     );
     const newContent = content.replace(regex, replaceText);
     setContent(newContent);

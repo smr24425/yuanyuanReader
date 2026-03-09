@@ -153,7 +153,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       const cleanedLine = line.replace(/\s+/g, " ");
       const lineCharCount = cleanedLine.length;
       const estimatedLineCount = Math.ceil(
-        (lineCharCount * (fontSize + 1.15)) / width
+        (lineCharCount * (fontSize + 1.15)) / width,
       );
       return acc + (estimatedLineCount || 1);
     }, 0);
@@ -162,7 +162,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
 
   const paraHeights = useMemo(
     () => paragraphs.map((p) => estimateParaHeight(p.text, containerWidth)),
-    [paragraphs, containerWidth, fontSize, lineHeight]
+    [paragraphs, containerWidth, fontSize, lineHeight],
   );
 
   const paraOffsets = useMemo(() => {
@@ -177,15 +177,23 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
 
   const totalHeight = paraHeights.reduce((sum, h) => sum + h, 0);
 
-  const startIndex = Math.max(
-    0,
-    paraOffsets.findIndex((offset) => offset > scrollTop) - BUFFER
-  );
-  const endIndex = Math.min(
-    paragraphs.length,
-    paraOffsets.findIndex((offset) => offset > scrollTop + VIEWPORT_HEIGHT) +
-      BUFFER
-  );
+  const startIndex = useMemo(() => {
+    const firstVisibleIdx = paraOffsets.findIndex(
+      (offset) => offset > scrollTop,
+    );
+    const idx =
+      firstVisibleIdx === -1 ? paragraphs.length - 1 : firstVisibleIdx;
+    return Math.max(0, idx - BUFFER);
+  }, [paraOffsets, scrollTop, paragraphs.length]);
+
+  const endIndex = useMemo(() => {
+    const lastVisibleIdx = paraOffsets.findIndex(
+      (offset) => offset > scrollTop + VIEWPORT_HEIGHT,
+    );
+    return lastVisibleIdx === -1
+      ? paragraphs.length
+      : Math.min(paragraphs.length, lastVisibleIdx + BUFFER);
+  }, [paraOffsets, scrollTop, paragraphs.length]);
 
   useEffect(() => {
     if (!book || !containerRef.current) return;
@@ -212,7 +220,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
         void writeProgressNow();
       });
     },
-    [writeProgressNow]
+    [writeProgressNow],
   );
 
   const toggleUI = useCallback(() => {
@@ -224,11 +232,11 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       if (!containerRef.current) return;
       setShowMenu(false);
       const firstParaIdxInChapter = paragraphs.findIndex(
-        (p) => p.chapterIndex === chapterIndex
+        (p) => p.chapterIndex === chapterIndex,
       );
       const offset =
         firstParaIdxInChapter >= 0
-          ? paraOffsets[firstParaIdxInChapter] ?? 0
+          ? (paraOffsets[firstParaIdxInChapter] ?? 0)
           : 0;
       containerRef.current.scrollTop = offset;
       setScrollTop(offset);
@@ -236,7 +244,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
         void writeProgressNow();
       });
     },
-    [paragraphs, paraOffsets, writeProgressNow]
+    [paragraphs, paraOffsets, writeProgressNow],
   );
 
   const currentChapterIndex = useMemo(() => {
@@ -299,7 +307,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       if (idx === -1) return paragraphs.length - 1;
       return idx;
     },
-    [paraOffsets, paraHeights, paragraphs.length]
+    [paraOffsets, paraHeights, paragraphs.length],
   );
 
   const chunkText = (text: string, maxLen = 180) => {
@@ -381,7 +389,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
 
       speakNextChunk();
     },
-    [paragraphs, paraOffsets]
+    [paragraphs, paraOffsets],
   );
 
   const startReadingFromScreenTop = useCallback(() => {
@@ -390,7 +398,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       window.speechSynthesis.cancel();
     } catch {}
     const startIdx = findParagraphAtScroll(
-      containerRef.current?.scrollTop ?? 0
+      containerRef.current?.scrollTop ?? 0,
     );
     isReadingRef.current = true;
     setIsReading(true);
@@ -546,7 +554,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
             <button
               onClick={() =>
                 setFontSize((size) =>
-                  clampFromStorage(size - 1, MIN_FONT_SIZE, MAX_FONT_SIZE)
+                  clampFromStorage(size - 1, MIN_FONT_SIZE, MAX_FONT_SIZE),
                 )
               }
             >
@@ -556,7 +564,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
             <button
               onClick={() =>
                 setFontSize((size) =>
-                  clampFromStorage(size + 1, MIN_FONT_SIZE, MAX_FONT_SIZE)
+                  clampFromStorage(size + 1, MIN_FONT_SIZE, MAX_FONT_SIZE),
                 )
               }
             >
@@ -569,7 +577,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
               textColor={textColor}
               onChange={(
                 newBg: React.SetStateAction<string>,
-                newText: React.SetStateAction<string>
+                newText: React.SetStateAction<string>,
               ) => {
                 setBgColor(newBg);
                 setTextColor(newText);

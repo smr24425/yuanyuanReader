@@ -92,5 +92,8 @@
     font-family: "Noto Sans TC", sans-serif;
     user-select: unset;
     overflow: auto;
+
+    touch-action: pan-y !important;
+    -webkit-overflow-scrolling: touch; /* 讓 iOS 滑動更順暢 */
   }
 }

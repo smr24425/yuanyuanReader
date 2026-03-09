@@ -58,9 +58,6 @@ const ReaderFooterBgColor: React.FC<ReaderFooterBgColorProps> = ({
           style={{
             backgroundColor: bgColor,
             color: textColor,
-            width: 80,
-            height: 26,
-            borderColor: "1px solid",
           }}
           onClick={() => setIsOpen(true)}
           title="點擊自訂背景與文字顏色"
