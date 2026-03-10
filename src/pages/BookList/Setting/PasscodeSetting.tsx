@@ -32,6 +32,8 @@ const PasscodeSetting: React.FC = () => {
           <Input
             type="password"
             placeholder="請輸入數字密碼"
+            inputMode="numeric" // 彈出數字鍵盤
+            pattern="[0-9]*" // 額外確保 iOS 彈出純數字鍵盤
             clearable
             maxLength={4}
             onChange={(val) => {
