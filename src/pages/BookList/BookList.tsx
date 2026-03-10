@@ -1,14 +1,79 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { Toast, ProgressBar, Dialog, NavBar, Badge, Popup } from "antd-mobile";
+import {
+  Toast,
+  ProgressBar,
+  Dialog,
+  NavBar,
+  Badge,
+  Popup,
+  Popover,
+  List,
+} from "antd-mobile";
 import { db, type Book } from "../../db/indexedDB";
 import { parseChapters } from "../../utils/txtParser";
 import { readFileWithEncodingFallback } from "../../utils/readFileWithEncodingFallback";
-import { AddOutline, CloseOutline, CheckOutline } from "antd-mobile-icons";
+import {
+  AddOutline,
+  CloseOutline,
+  CheckOutline,
+  SetOutline,
+  LoopOutline,
+  MessageOutline,
+} from "antd-mobile-icons";
 import "./BookList.scss";
 import Reader from "../Reader/Reader";
 import BookEditor from "../BookEditor/BookEditor";
 import { FiEdit, FiTrash2, FiShare2 } from "react-icons/fi";
 import { downloadTxT } from "../../utils/common";
+import { registerSW } from "virtual:pwa-register";
+
+const updateSW = registerSW({
+  onNeedRefresh() {
+    Dialog.confirm({
+      content: "發現新版本，是否立即更新？",
+      onConfirm: () => updateSW(true),
+    });
+  },
+});
+
+const handleCheckUpdate = async () => {
+  const handler = Toast.show({
+    icon: "loading",
+    content: "檢查更新中...",
+    duration: 0,
+    maskClickable: false,
+  });
+
+  try {
+    await updateSW();
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    const registration = await navigator.serviceWorker.getRegistration();
+
+    handler.close();
+
+    if (registration?.waiting) {
+      Dialog.confirm({
+        content: "發現新版本，是否立即更新？",
+        onConfirm: () => {
+          updateSW(true);
+        },
+      });
+    } else {
+      Toast.show({
+        content: "目前已是最新版本",
+        icon: "success",
+      });
+    }
+  } catch (error) {
+    handler.close();
+    Toast.show({
+      content: "檢查失敗，請稍後再試",
+      icon: "fail",
+    });
+  }
+};
 
 const LONG_PRESS_MS = 500;
 
@@ -23,6 +88,7 @@ const BookList: React.FC = () => {
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editBookId, setEditBookId] = useState<number | null>(null);
+  const [settingsVisible, setSettingsVisible] = useState(false);
 
   const loadBooks = async () => {
     const allBooks = await db.books.toCollection().sortBy("lookedAt");
@@ -35,6 +101,29 @@ const BookList: React.FC = () => {
   }, []);
 
   // === Header 狀態 ===
+  const settingActions = [
+    {
+      key: "import",
+      text: "導入檔案",
+      icon: <AddOutline />,
+    },
+    {
+      key: "update",
+      text: "檢查更新",
+      icon: <LoopOutline />,
+    },
+  ];
+
+  const handleSettingAction = (action: any) => {
+    if (action.key === "import") {
+      setTimeout(() => {
+        fileInputRef.current?.click();
+      }, 10);
+    } else if (action.key === "update") {
+      handleCheckUpdate();
+    }
+  };
+
   const allSelectableIds = useMemo(
     () =>
       books
@@ -186,6 +275,15 @@ const BookList: React.FC = () => {
       {!selectMode ? (
         <NavBar
           backArrow={false}
+          left={
+            <span
+              role="button"
+              onClick={() => setSettingsVisible(true)} // 開啟設定彈窗
+              style={{ fontSize: 22, display: "flex", alignItems: "center" }}
+            >
+              <SetOutline />
+            </span>
+          }
           right={
             <>
               {/* 上傳 icon */}
@@ -398,6 +496,74 @@ const BookList: React.FC = () => {
             }}
           />
         )}
+      </Popup>
+
+      <Popup
+        visible={settingsVisible}
+        onMaskClick={() => setSettingsVisible(false)}
+        onClose={() => setSettingsVisible(false)}
+        className="setting-popup"
+        bodyStyle={{
+          borderTopLeftRadius: "12px",
+          borderTopRightRadius: "12px",
+          height: "80vh",
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "#f7f7f7",
+        }}
+      >
+        <NavBar
+          backArrow={false}
+          right={
+            <CloseOutline
+              onClick={() => setSettingsVisible(false)}
+              style={{
+                fontSize: 20,
+                color: "#fff",
+                padding: "4px",
+                borderRadius: "50%",
+                background: "#000",
+              }}
+            />
+          }
+          style={{
+            borderBottom: "1px solid #f0f0f0",
+            textAlign: "center",
+            fontWeight: "bold",
+          }}
+        >
+          設定
+        </NavBar>
+
+        <List>
+          <List.Item
+            prefix={<LoopOutline />}
+            onClick={handleCheckUpdate}
+            clickable
+          >
+            檢查更新
+          </List.Item>
+
+          <List.Item
+            prefix={<MessageOutline />}
+            onClick={() => {
+              const subject = encodeURIComponent("淵淵閱讀 - 問題反饋");
+              const body = encodeURIComponent(
+                "\n\n---\n裝置資訊: " + navigator.userAgent,
+              );
+              window.location.href = `mailto:smr24425@gmail.com?subject=${subject}&body=${body}`;
+            }}
+            clickable
+          >
+            問題反饋
+          </List.Item>
+        </List>
+
+        <List>
+          <List.Item extra={`v${__APP_VERSION__ || "1.0.0"}`}>
+            當前版本
+          </List.Item>
+        </List>
       </Popup>
     </div>
   );
