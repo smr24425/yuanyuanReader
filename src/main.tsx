@@ -2,10 +2,20 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
-import "antd-mobile/es/global"; // antd-mobile 全局樣式
+import "antd-mobile/es/global";
 import { unstableSetRender } from "antd-mobile";
 import { registerSW } from "virtual:pwa-register";
-registerSW(); // 啟動自動註冊的 service worker
+
+const updateSW = registerSW({
+  onNeedRefresh() {
+    if (confirm("發現新版本，是否立即更新？")) {
+      updateSW(true);
+    }
+  },
+  onOfflineReady() {
+    console.log("應用程式已準備好離線使用");
+  },
+});
 
 unstableSetRender((node, container: any) => {
   container._reactRoot ||= createRoot(container);
@@ -20,5 +30,5 @@ unstableSetRender((node, container: any) => {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
-  </StrictMode>
+  </StrictMode>,
 );
