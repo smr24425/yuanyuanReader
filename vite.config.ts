@@ -20,11 +20,6 @@ export default defineConfig({
       },
       injectRegister: null,
       registerType: "prompt",
-      workbox: {
-        // 核心設定：禁止新 SW 自動跳過等待與接管頁面
-        skipWaiting: false,
-        clientsClaim: false,
-      },
     }),
   ],
   define: {

@@ -1,7 +1,7 @@
 import React from "react";
-import { List, Toast, Dialog } from "antd-mobile";
+import { List, Toast } from "antd-mobile";
 import { LoopOutline } from "antd-mobile-icons";
-import { updateSW } from "../../../utils/pwa";
+import { showUpdateDialog, updateSW } from "../../../utils/pwa";
 
 const CheckVersion: React.FC = () => {
   const handleCheckUpdate = async () => {
@@ -21,18 +21,7 @@ const CheckVersion: React.FC = () => {
       handler.close();
 
       if (registration?.waiting) {
-        Dialog.confirm({
-          title: "版本更新",
-          content: "發現新版本，是否立即更新？",
-          confirmText: "更新",
-          cancelText: "稍後",
-          onConfirm: () => {
-            updateSW(true);
-          },
-          onCancel: () => {
-            console.log("取消更新");
-          },
-        });
+        showUpdateDialog();
       } else {
         Toast.show({
           content: "目前已是最新版本",

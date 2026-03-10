@@ -1,22 +1,27 @@
 import { registerSW } from "virtual:pwa-register";
 import { Dialog } from "antd-mobile";
 
-export const updateSW = registerSW({
-  // 設定為手動立即更新，而非自動。這能防止背景靜默更新。
-  immediate: false,
-
-  onNeedRefresh() {
-    Dialog.confirm({
-      title: "版本更新",
-      content: "發現新版本，是否立即更新？",
-      confirmText: "更新",
-      cancelText: "稍後",
-      onConfirm: () => {
+export const showUpdateDialog = (): void => {
+  Dialog.show({
+    title: "版本更新",
+    content: "發現新版本，自動進行更新。",
+    actions: [
+      {
+        key: "confirm",
+        text: "確認",
+      },
+    ],
+    onAction: (action) => {
+      if (action.key === "confirm") {
         updateSW(true);
-      },
-      onCancel: () => {
-        console.log("取消更新");
-      },
-    });
+      }
+    },
+    closeOnMaskClick: false,
+  });
+};
+
+export const updateSW = registerSW({
+  onNeedRefresh: () => {
+    showUpdateDialog();
   },
 });
