@@ -6,7 +6,6 @@ import {
   NavBar,
   Badge,
   Popup,
-  Popover,
   List,
 } from "antd-mobile";
 import { db, type Book } from "../../db/indexedDB";
@@ -25,55 +24,8 @@ import Reader from "../Reader/Reader";
 import BookEditor from "../BookEditor/BookEditor";
 import { FiEdit, FiTrash2, FiShare2 } from "react-icons/fi";
 import { downloadTxT } from "../../utils/common";
-import { registerSW } from "virtual:pwa-register";
-
-const updateSW = registerSW({
-  onNeedRefresh() {
-    Dialog.confirm({
-      content: "發現新版本，是否立即更新？",
-      onConfirm: () => updateSW(true),
-    });
-  },
-});
-
-const handleCheckUpdate = async () => {
-  const handler = Toast.show({
-    icon: "loading",
-    content: "檢查更新中...",
-    duration: 0,
-    maskClickable: false,
-  });
-
-  try {
-    await updateSW();
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const registration = await navigator.serviceWorker.getRegistration();
-
-    handler.close();
-
-    if (registration?.waiting) {
-      Dialog.confirm({
-        content: "發現新版本，是否立即更新？",
-        onConfirm: () => {
-          updateSW(true);
-        },
-      });
-    } else {
-      Toast.show({
-        content: "目前已是最新版本",
-        icon: "success",
-      });
-    }
-  } catch (error) {
-    handler.close();
-    Toast.show({
-      content: "檢查失敗，請稍後再試",
-      icon: "fail",
-    });
-  }
-};
+import PasscodeSetting from "./Setting/PasscodeSetting";
+import CheckVersion from "./Setting/CheckVersion";
 
 const LONG_PRESS_MS = 500;
 
@@ -513,14 +465,7 @@ const BookList: React.FC = () => {
         </NavBar>
 
         <List>
-          <List.Item
-            prefix={<LoopOutline />}
-            onClick={handleCheckUpdate}
-            clickable
-          >
-            檢查更新
-          </List.Item>
-
+          <CheckVersion />
           <List.Item
             prefix={<MessageOutline />}
             onClick={() => {
@@ -535,6 +480,8 @@ const BookList: React.FC = () => {
             問題反饋
           </List.Item>
         </List>
+
+        <PasscodeSetting />
 
         <List>
           <List.Item extra={`v${__APP_VERSION__ || "1.0.0"}`}>

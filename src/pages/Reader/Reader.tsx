@@ -54,7 +54,6 @@ function updateThemeColor(color: string) {
     document.head.appendChild(meta);
   }
   meta.setAttribute("content", color);
-  document.body.style.backgroundColor = color;
 }
 
 const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {

@@ -4,6 +4,7 @@ import "./index.css";
 import App from "./App.tsx";
 import "antd-mobile/es/global";
 import { unstableSetRender } from "antd-mobile";
+import "./utils/pwa.ts";
 
 unstableSetRender((node, container: any) => {
   container._reactRoot ||= createRoot(container);
