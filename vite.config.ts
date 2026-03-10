@@ -19,7 +19,7 @@ export default defineConfig({
         start_url: "/yuanyuanReader/",
       },
       injectRegister: "auto",
-      registerType: "autoUpdate",
+      registerType: "prompt",
     }),
   ],
   define: {
