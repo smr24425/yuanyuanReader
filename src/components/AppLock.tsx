@@ -50,6 +50,8 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
             </div>
             <Input
               type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder="請輸入 4 位數密碼"
               value={inputVal}
               onChange={setInputVal}
