@@ -22,9 +22,15 @@ const CheckVersion: React.FC = () => {
 
       if (registration?.waiting) {
         Dialog.confirm({
+          title: "版本更新",
           content: "發現新版本，是否立即更新？",
+          confirmText: "更新",
+          cancelText: "稍後",
           onConfirm: () => {
             updateSW(true);
+          },
+          onCancel: () => {
+            console.log("取消更新");
           },
         });
       } else {

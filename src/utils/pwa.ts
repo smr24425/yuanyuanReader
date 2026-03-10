@@ -15,7 +15,7 @@ export const updateSW = registerSW({
         updateSW(true);
       },
       onCancel: () => {
-        console.log("使用者選擇延遲更新");
+        console.log("取消更新");
       },
     });
   },
