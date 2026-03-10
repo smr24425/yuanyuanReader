@@ -101,29 +101,6 @@ const BookList: React.FC = () => {
   }, []);
 
   // === Header 狀態 ===
-  const settingActions = [
-    {
-      key: "import",
-      text: "導入檔案",
-      icon: <AddOutline />,
-    },
-    {
-      key: "update",
-      text: "檢查更新",
-      icon: <LoopOutline />,
-    },
-  ];
-
-  const handleSettingAction = (action: any) => {
-    if (action.key === "import") {
-      setTimeout(() => {
-        fileInputRef.current?.click();
-      }, 10);
-    } else if (action.key === "update") {
-      handleCheckUpdate();
-    }
-  };
-
   const allSelectableIds = useMemo(
     () =>
       books
