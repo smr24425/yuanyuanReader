@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# 告訴 Google 你的網站地圖在哪裡
+Sitemap: https://smr24425.github.io/yuanyuanReader/sitemap.xml
