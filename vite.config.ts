@@ -18,7 +18,7 @@ export default defineConfig({
         display: "standalone",
         start_url: "/yuanyuanReader/",
       },
-      injectRegister: "auto",
+      injectRegister: null,
       registerType: "prompt",
     }),
   ],
