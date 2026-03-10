@@ -408,9 +408,15 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
 
   const startReadingFromScreenTop = useCallback(() => {
     if (!paragraphs.length) return;
+
+    // 1. 播放靜音音軌（必須由使用者點擊觸發）
+    const audio = document.getElementById("silent-audio") as HTMLAudioElement;
+    if (audio) audio.play().catch(() => {});
+
     try {
       window.speechSynthesis.cancel();
     } catch {}
+
     const startIdx = findParagraphAtScroll(
       containerRef.current?.scrollTop ?? 0,
     );
@@ -423,6 +429,11 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const stopReading = useCallback(() => {
     isReadingRef.current = false;
     setIsReading(false);
+
+    // 2. 停止靜音音軌
+    const audio = document.getElementById("silent-audio") as HTMLAudioElement;
+    if (audio) audio.pause();
+
     try {
       if (currentUtteranceRef.current) {
         currentUtteranceRef.current.onend = null;
@@ -430,6 +441,65 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       window.speechSynthesis.cancel();
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (isReading && "mediaSession" in navigator) {
+      // 設定鎖屏顯示資訊
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentChapterTitle,
+        artist: book?.title || "源源閱讀器",
+        album: "正在語音朗讀",
+        artwork: [
+          {
+            src: "https://smr24425.github.io/yuanyuanReader/logo192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+        ],
+      });
+
+      // 綁定鎖屏控制按鈕
+      navigator.mediaSession.setActionHandler(
+        "play",
+        startReadingFromScreenTop,
+      );
+      navigator.mediaSession.setActionHandler("pause", stopReading);
+      navigator.mediaSession.setActionHandler("previoustrack", goToPrevChapter);
+      navigator.mediaSession.setActionHandler("nexttrack", goToNextChapter);
+
+      // 為了更好的體驗，建議也加上前進/後退 10 秒
+      navigator.mediaSession.setActionHandler("seekbackward", () => {
+        if (containerRef.current) containerRef.current.scrollTop -= 500;
+      });
+      navigator.mediaSession.setActionHandler("seekforward", () => {
+        if (containerRef.current) containerRef.current.scrollTop += 500;
+      });
+    }
+
+    return () => {
+      if ("mediaSession" in navigator) {
+        // 清除處理器，避免記憶體洩漏
+        [
+          "play",
+          "pause",
+          "previoustrack",
+          "nexttrack",
+          "seekbackward",
+          "seekforward",
+        ].forEach((action) =>
+          navigator.mediaSession.setActionHandler(action as any, null),
+        );
+      }
+    };
+  }, [
+    isReading,
+    currentChapterTitle,
+    book?.title,
+    startReadingFromScreenTop,
+    stopReading,
+    goToPrevChapter,
+    goToNextChapter,
+  ]);
 
   return (
     <div
@@ -634,69 +704,12 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
           )}
         </div>
       )}
-
-      {/* === TTS：彈窗（暫停/繼續/停止/從本頁開始） */}
-      {/* {showTtsPanel && (
-        <div className="tts-modal" onClick={(e) => e.stopPropagation()}>
-          <div
-            className="tts-modal__mask"
-            onClick={() => setShowTtsPanel(false)}
-          />
-          <div className="tts-modal__panel">
-            <div className="tts-modal__header">
-              <div>朗讀控制</div>
-              <button
-                className="tts-modal__close"
-                onClick={() => setShowTtsPanel(false)}
-                aria-label="關閉"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="tts-modal__content">
-              <div className="tts-row tts-actions">
-                {!isReading ? (
-                  <button
-                    className="reader-tts-btn"
-                    onClick={(e) => {
-                      startReadingFromScreenTop();
-                      e.stopPropagation();
-                    }}
-                  >
-                    ▶ 從本頁開始
-                  </button>
-                ) : (
-                  <>
-                    {!isPaused ? (
-                      <button className="reader-tts-btn" onClick={pauseReading}>
-                        ⏸ 暫停
-                      </button>
-                    ) : (
-                      <button
-                        className="reader-tts-btn"
-                        onClick={resumeReading}
-                      >
-                        ⏯ 繼續
-                      </button>
-                    )}
-                    <button
-                      className="reader-tts-btn stop"
-                      onClick={stopReading}
-                    >
-                      ■ 停止
-                    </button>
-                  </>
-                )}
-              </div>
-
-              <div className="tts-hint">
-                朗讀中的段落會自動高亮並平滑捲動至該段。
-              </div>
-            </div>
-          </div>
-        </div>
-      )} */}
+      {/* 隱藏的靜音音軌，用來維持背景運行權限 */}
+      <audio
+        id="silent-audio"
+        loop
+        src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA=="
+      />
     </div>
   );
 };
