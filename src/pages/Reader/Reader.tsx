@@ -326,14 +326,31 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
 
   const chunkText = (text: string, maxLen = 180) => {
     const parts: string[] = [];
-    const sentences = text.replace(/\s+/g, " ").split(/(?<=[。！？!?；;．.])/);
+
+    // 1. 移除或替換省略號
+    // \.{3,} 匹配三個或更多的英文句點
+    // [。]{2,} 匹配兩個或更多的大陸/台灣式全形句號
+    // \s+ 順便清理多餘空白
+    const cleanedText = text
+      .replace(/\.{2,}/g, "") // 移除兩個以上的 ..
+      .replace(/。{2,}/g, "") // 移除兩個以上的 。。
+      .replace(/…+/g, "") // 移除中英文省略號 …
+      .replace(/\s+/g, " ");
+
+    // 2. 依照標點符號切割句子
+    const sentences = cleanedText.split(/(?<=[。！？!?；;．.])/);
+
     for (const s of sentences) {
-      if (s.length <= maxLen) {
-        if (s.trim()) parts.push(s.trim());
+      const trimmed = s.trim();
+      if (!trimmed) continue;
+
+      if (trimmed.length <= maxLen) {
+        parts.push(trimmed);
       } else {
+        // 超過長度則強制分段
         let i = 0;
-        while (i < s.length) {
-          parts.push(s.slice(i, i + maxLen));
+        while (i < trimmed.length) {
+          parts.push(trimmed.slice(i, i + maxLen));
           i += maxLen;
         }
       }
