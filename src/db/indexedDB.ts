@@ -3,12 +3,17 @@ import Dexie, { type Table } from "dexie";
 
 export interface Book {
   id?: number;
+  type?: "txt" | "epub";
+  fileData?: ArrayBuffer;
+  cover?: string; // base64 string or blob URL
   title: string;
   content: string;
   chapters: { title: string }[];
   progressPx?: number;
   totalScrollablePx?: number;
   percent?: number; // 0~100
+  progressCfi?: string;
+  locationsDB?: string; // Cached JSON string of generated locations
   updatedAt?: number;
   lookedAt: number;
 }
@@ -31,6 +36,15 @@ class MyDB extends Dexie {
             if (b.lookedAt === undefined) b.lookedAt = 0;
           });
       });
+
+    this.version(3).upgrade((tx) => {
+      return tx
+        .table("books")
+        .toCollection()
+        .modify((b: any) => {
+          if (b.type === undefined) b.type = "txt";
+        });
+    });
   }
 }
 

@@ -7,10 +7,14 @@ import {
   Badge,
   Popup,
   List,
+  Tabs,
+  Swiper,
 } from "antd-mobile";
+import type { SwiperRef } from "antd-mobile/es/components/swiper";
 import { db, type Book } from "../../db/indexedDB";
 import { parseChapters } from "../../utils/txtParser";
 import { readFileWithEncodingFallback } from "../../utils/readFileWithEncodingFallback";
+import ePub from "epubjs";
 import {
   AddOutline,
   CloseOutline,
@@ -20,14 +24,21 @@ import {
 } from "antd-mobile-icons";
 import "./BookList.scss";
 import Reader from "../Reader/Reader";
+import EpubReader from "../Reader/EpubReader";
 import BookEditor from "../BookEditor/BookEditor";
 import { FiEdit, FiTrash2, FiShare2 } from "react-icons/fi";
 import { downloadTxT } from "../../utils/common";
 import PasscodeSetting from "./Setting/PasscodeSetting";
 import CheckVersion from "./Setting/CheckVersion";
 import Footer from "../../components/Footer";
+import { getTabSwipeLocked } from "../../utils/storage";
 
 const LONG_PRESS_MS = 500;
+
+const tabItems = [
+  { key: "txt", title: "TXT" },
+  { key: "epub", title: "EPUB" },
+];
 
 const BookList: React.FC = () => {
   const [books, setBooks] = useState<Book[]>([]);
@@ -35,12 +46,19 @@ const BookList: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [pressTimer, setPressTimer] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [readerOpen, setReaderOpen] = useState(false);
   const [activeBookId, setActiveBookId] = useState<number | null>(null);
+  const [activeBookType, setActiveBookType] = useState<"txt" | "epub">("txt");
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editBookId, setEditBookId] = useState<number | null>(null);
   const [settingsVisible, setSettingsVisible] = useState(false);
+
+  const [activeTabKey, setActiveTabKey] = useState("txt");
+  const swiperRef = useRef<SwiperRef>(null);
+
+  const [isSwipeLocked, setIsSwipeLocked] = useState(getTabSwipeLocked());
 
   const loadBooks = async () => {
     const allBooks = await db.books.toCollection().sortBy("lookedAt");
@@ -53,13 +71,18 @@ const BookList: React.FC = () => {
   }, []);
 
   // === Header 狀態 ===
+  const currentTabBooks = useMemo(() => {
+    return books.filter((b) => (activeTabKey === "epub" ? b.type === "epub" : b.type !== "epub"));
+  }, [books, activeTabKey]);
+
   const allSelectableIds = useMemo(
     () =>
-      books
+      currentTabBooks
         .map((b) => b.id!)
         .filter((id): id is number => typeof id === "number"),
-    [books],
+    [currentTabBooks]
   );
+
   const isAllSelected =
     allSelectableIds.length > 0 &&
     allSelectableIds.every((id) => selectedIds.has(id));
@@ -83,22 +106,82 @@ const BookList: React.FC = () => {
     if (!file) return;
 
     try {
-      const text = await readFileWithEncodingFallback(file);
-      const title = file.name.replace(/\.txt$/i, "");
-      const chapters = parseChapters(text);
+      if (file.name.toLowerCase().endsWith(".epub")) {
+        const arrayBuffer = await file.arrayBuffer();
+        const title = file.name.replace(/\.epub$/i, "");
 
-      await db.books.add({
-        title,
-        content: text,
-        // 初始化新欄位（首頁用 percent 顯示）
-        percent: 0,
-        totalScrollablePx: 0,
-        progressPx: 0,
-        chapters,
-        lookedAt: Date.now(),
-      });
+        let coverBase64 = "";
+        let locationsStr = "";
 
-      Toast.show({ content: "書籍上傳成功", icon: "success" });
+        const toastHandler = Toast.show({
+          icon: "loading",
+          content: "解析電子書進度與書封中...",
+          duration: 0,
+          maskClickable: false,
+        });
+
+        try {
+          const epubBook = ePub(arrayBuffer);
+          await epubBook.ready;
+
+          const coverUrl = await epubBook.coverUrl();
+          if (coverUrl) {
+            const res = await fetch(coverUrl);
+            const blob = await res.blob();
+            coverBase64 = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+          }
+
+          // Generate locations
+          await epubBook.locations.generate(500);
+          locationsStr = JSON.stringify(epubBook.locations.save());
+
+          epubBook.destroy();
+        } catch (e) {
+          console.warn("解析 EPUB 發生錯誤", e);
+        } finally {
+          toastHandler.close();
+        }
+
+        await db.books.add({
+          title,
+          content: "",
+          chapters: [],
+          type: "epub",
+          fileData: arrayBuffer,
+          cover: coverBase64,
+          locationsDB: locationsStr,
+          percent: 0,
+          totalScrollablePx: 0,
+          progressPx: 0,
+          lookedAt: Date.now(),
+        });
+        Toast.show({ content: "EPUB 上傳成功", icon: "success" });
+        setActiveTabKey("epub");
+        swiperRef.current?.swipeTo(1);
+      } else {
+        const text = await readFileWithEncodingFallback(file);
+        const title = file.name.replace(/\.txt$/i, "");
+        const chapters = parseChapters(text);
+
+        await db.books.add({
+          title,
+          content: text,
+          type: "txt",
+          percent: 0,
+          totalScrollablePx: 0,
+          progressPx: 0,
+          chapters,
+          lookedAt: Date.now(),
+        });
+        Toast.show({ content: "TXT 上傳成功", icon: "success" });
+        setActiveTabKey("txt");
+        swiperRef.current?.swipeTo(0);
+      }
+
       await loadBooks();
     } catch (err) {
       console.error("上傳錯誤", err);
@@ -136,7 +219,6 @@ const BookList: React.FC = () => {
   // === 卡片互動（短按/長按） ===
   const startPressTimer = (bookId?: number) => {
     if (!bookId) return;
-    // 設定計時器：超過 LONG_PRESS_MS → 進入選取模式並勾選該本
     const timer = window.setTimeout(() => {
       setSelectMode(true);
       setSelectedIds((prev) => new Set(prev).add(bookId));
@@ -150,15 +232,14 @@ const BookList: React.FC = () => {
       setPressTimer(null);
     }
   };
-  // 新增：處理觸摸移動
+
   const handleTouchMove = () => {
-    // 只要使用者開始滑動螢幕，就代表這不是長按，清除計時器
     clearPressTimer();
   };
 
-  // 替代 navigate 的行為
-  const openReader = (bookId: number) => {
-    setActiveBookId(bookId);
+  const openReader = (book: Book) => {
+    setActiveBookId(book.id!);
+    setActiveBookType(book.type === "epub" ? "epub" : "txt");
     setReaderOpen(true);
   };
   const closeReader = () => {
@@ -173,7 +254,7 @@ const BookList: React.FC = () => {
       else next.add(book.id!);
       setSelectedIds(next);
     } else {
-      openReader(book.id!); // ★ 不再 navigate
+      openReader(book);
     }
   };
 
@@ -195,10 +276,79 @@ const BookList: React.FC = () => {
     return 0;
   };
 
+  const renderBookGrid = (bookList: Book[]) => (
+    <div className="book-grid">
+      {bookList.map((book) => {
+        const readPercent = calcPercent(book);
+        const checked = book.id ? selectedIds.has(book.id) : false;
+
+        return (
+          <div
+            key={book.id}
+            className={`book-card ${selectMode ? "select-mode" : ""} ${checked ? "selected" : ""
+              }`}
+            onClick={() => onCardClick(book)}
+            onMouseDown={() => startPressTimer(book.id)}
+            onMouseUp={clearPressTimer}
+            onMouseLeave={clearPressTimer}
+            onTouchStart={() => startPressTimer(book.id)}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={clearPressTimer}
+          >
+            {selectMode && (
+              <Badge
+                content={checked ? <CheckOutline /> : null}
+                color={checked ? "var(--adm-color-primary)" : "#d9d9d9"}
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              />
+            )}
+
+            {book.type === "epub" && book.cover ? (
+              <div className="book-cover">
+                <img src={book.cover} alt={book.title} />
+              </div>
+            ) : (
+              <div className="book-title">{book.title}</div>
+            )}
+
+            <div className="book-progress">
+              <ProgressBar
+                percent={readPercent}
+                style={{ "--track-width": "4px" }}
+              />
+              <span>{`已閱讀 ${readPercent}%`}</span>
+              {book.lookedAt && (
+                <div className="book-looked-at">
+                  {new Date(book.lookedAt).toLocaleString("zh-TW", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div
       className="book-list-container"
-      style={{ paddingBottom: selectMode ? 56 : 0 }}
+      style={{ paddingBottom: selectMode ? 56 : 0, display: "flex", flexDirection: "column", height: "100dvh" }}
     >
       {/* ===== Header ===== */}
       {!selectMode ? (
@@ -207,7 +357,7 @@ const BookList: React.FC = () => {
           left={
             <span
               role="button"
-              onClick={() => setSettingsVisible(true)} // 開啟設定彈窗
+              onClick={() => setSettingsVisible(true)}
               style={{ fontSize: 22, display: "flex", alignItems: "center" }}
             >
               <SetOutline />
@@ -215,7 +365,6 @@ const BookList: React.FC = () => {
           }
           right={
             <>
-              {/* 上傳 icon */}
               <span
                 role="button"
                 aria-label="上傳書籍"
@@ -227,7 +376,7 @@ const BookList: React.FC = () => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".txt"
+                accept=".txt,.epub"
                 onChange={handleFileChange}
                 style={{ display: "none" }}
               />
@@ -263,76 +412,48 @@ const BookList: React.FC = () => {
         </NavBar>
       )}
 
-      {/* ===== Grid ===== */}
-      <div className="book-grid">
-        {books.map((book) => {
-          const readPercent = calcPercent(book);
-          const checked = book.id ? selectedIds.has(book.id) : false;
+      {/* ===== Tabs & Swiper ===== */}
+      <Tabs
+        activeKey={activeTabKey}
+        onChange={(key) => {
+          setActiveTabKey(key);
+          swiperRef.current?.swipeTo(tabItems.findIndex((t) => t.key === key));
+          exitSelectMode();
+        }}
+      >
+        {tabItems.map((item) => (
+          <Tabs.Tab title={item.title} key={item.key} />
+        ))}
+      </Tabs>
 
-          return (
-            <div
-              key={book.id}
-              className={`book-card ${selectMode ? "select-mode" : ""} ${checked ? "selected" : ""
-                }`}
-              onClick={() => onCardClick(book)}
-              onMouseDown={() => startPressTimer(book.id)}
-              onMouseUp={clearPressTimer}
-              onMouseLeave={clearPressTimer}
-              onTouchStart={() => startPressTimer(book.id)}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={clearPressTimer}
-            >
-              {/* 右上角勾選徽章（選取模式顯示） */}
-              {selectMode && (
-                <Badge
-                  content={checked ? <CheckOutline /> : null}
-                  color={checked ? "var(--adm-color-primary)" : "#d9d9d9"}
-                  style={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                />
-              )}
-
-              <div className="book-title">{book.title}</div>
-              <div className="book-progress">
-                <ProgressBar
-                  percent={readPercent}
-                  style={{ "--track-width": "4px" }}
-                />
-                <span>{`已閱讀 ${readPercent}%`}</span>
-                {book.lookedAt && (
-                  <div className="book-looked-at">
-                    {new Date(book.lookedAt).toLocaleString("zh-TW", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        <Swiper
+          direction="horizontal"
+          indicator={() => null}
+          ref={swiperRef}
+          defaultIndex={0}
+          allowTouchMove={!isSwipeLocked}
+          onIndexChange={(index) => {
+            setActiveTabKey(tabItems[index].key);
+            exitSelectMode();
+          }}
+          style={{ height: '100%' }}
+        >
+          <Swiper.Item style={{ overflowY: 'auto' }}>
+            {renderBookGrid(books.filter((b) => b.type !== "epub"))}
+          </Swiper.Item>
+          <Swiper.Item style={{ overflowY: 'auto' }}>
+            {renderBookGrid(books.filter((b) => b.type === "epub"))}
+          </Swiper.Item>
+        </Swiper>
       </div>
-
-      <div style={{ flex: 1 }} />
 
       <Footer />
 
       {/* ===== 底部刪除列（選取模式顯示） ===== */}
       {selectMode && (
         <div className="bottom-action-bar" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-          {selectedIds.size === 1 && (
+          {selectedIds.size === 1 && activeTabKey === "txt" && (
             <button
               className="action-btn edit-btn"
               onClick={() => {
@@ -347,7 +468,7 @@ const BookList: React.FC = () => {
             </button>
           )}
 
-          {selectedIds.size === 1 && (
+          {selectedIds.size === 1 && activeTabKey === "txt" && (
             <button
               className="action-btn share-btn"
               onClick={() => {
@@ -384,12 +505,11 @@ const BookList: React.FC = () => {
       )}
 
       <Popup
-        position="right" // 這裡設成 right，從右側滑入
+        position="right"
         visible={readerOpen}
         onMaskClick={closeReader}
         onClose={closeReader}
         disableBodyScroll={false}
-        // 全屏
         bodyStyle={{
           height: "100dvh",
           width: "100vw",
@@ -399,7 +519,16 @@ const BookList: React.FC = () => {
         maskStyle={{ background: "rgba(0,0,0,0.45)" }}
         destroyOnClose
       >
-        {activeBookId != null && (
+        {activeBookId != null && activeBookType === "epub" && (
+          <EpubReader
+            bookId={activeBookId}
+            onClose={() => {
+              closeReader();
+              loadBooks();
+            }}
+          />
+        )}
+        {activeBookId != null && activeBookType === "txt" && (
           <Reader
             bookId={activeBookId}
             onClose={() => {
@@ -431,8 +560,8 @@ const BookList: React.FC = () => {
             onClose={() => {
               setEditModalOpen(false);
               setEditBookId(null);
-              loadBooks(); // 儲存後刷新書籍列表
-              exitSelectMode(); // 離開選取模式
+              loadBooks();
+              exitSelectMode();
             }}
           />
         )}
@@ -440,8 +569,14 @@ const BookList: React.FC = () => {
 
       <Popup
         visible={settingsVisible}
-        onMaskClick={() => setSettingsVisible(false)}
-        onClose={() => setSettingsVisible(false)}
+        onMaskClick={() => {
+          setSettingsVisible(false);
+          setIsSwipeLocked(getTabSwipeLocked());
+        }}
+        onClose={() => {
+          setSettingsVisible(false);
+          setIsSwipeLocked(getTabSwipeLocked());
+        }}
         className="setting-popup"
         bodyStyle={{
           borderTopLeftRadius: "12px",
@@ -495,7 +630,7 @@ const BookList: React.FC = () => {
         <PasscodeSetting />
 
         <List>
-          <List.Item extra={`v${__APP_VERSION__ || "1.0.0"}`}>
+          <List.Item extra={`v${"1.0.0"}`}>
             當前版本
           </List.Item>
         </List>

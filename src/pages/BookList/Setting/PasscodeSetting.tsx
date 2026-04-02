@@ -7,12 +7,15 @@ import {
   getAppPasscode,
   setAppPasscode,
   removePasscode,
+  getTabSwipeLocked,
+  setTabSwipeLocked,
 } from "../../../utils/storage";
 
 const PasscodeSetting: React.FC = () => {
   // 從儲存層讀取初始狀態
   const [isEnabled, setIsEnabled] = useState<boolean>(getPasscodeEnabled());
   const [hasPasscode, setHasPasscode] = useState<boolean>(!!getAppPasscode());
+  const [isTabSwipeLocked, setIsTabSwipeLocked] = useState<boolean>(getTabSwipeLocked());
 
   /**
    * 彈出密碼設定對話框
@@ -131,6 +134,25 @@ const PasscodeSetting: React.FC = () => {
           修改存取密碼
         </List.Item>
       )}
+
+      <List.Item
+        extra={
+          <Switch
+            checked={isTabSwipeLocked}
+            onChange={(val) => {
+              setTabSwipeLocked(val);
+              setIsTabSwipeLocked(val);
+            }}
+            style={{
+              "--height": "24px",
+              "--width": "42px",
+            }}
+          />
+        }
+        description="鎖定後無法透過滑動手勢切換書庫分頁"
+      >
+        鎖定書庫滑動切換
+      </List.Item>
     </List>
   );
 };

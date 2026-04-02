@@ -4,6 +4,7 @@ const STORAGE_KEYS = {
   readerTextColor: "reader.textColor",
   isEnabled: "isPasscodeEnabled",
   passcode: "appPasscode",
+  lockTabSwipe: "lockTabSwipe",
 } as const;
 
 export const DEFAULT_FONT_SIZE = 14;
@@ -110,3 +111,16 @@ export const verifyPasscode = (input: string): boolean => {
   const saved = getAppPasscode();
   return saved !== null && saved === input;
 };
+
+// --- 書庫設定相關 ---
+
+/** 獲取是否鎖定書庫 Tab 滑動 */
+export const getTabSwipeLocked = (): boolean => {
+  return safeGetItem(STORAGE_KEYS.lockTabSwipe) === "true";
+};
+
+/** 設定是否鎖定書庫 Tab 滑動 */
+export const setTabSwipeLocked = (locked: boolean): void => {
+  safeSetItem(STORAGE_KEYS.lockTabSwipe, String(locked));
+};
+
