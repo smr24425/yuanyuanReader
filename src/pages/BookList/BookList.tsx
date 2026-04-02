@@ -16,7 +16,6 @@ import {
   CloseOutline,
   CheckOutline,
   SetOutline,
-  LoopOutline,
   MessageOutline,
 } from "antd-mobile-icons";
 import "./BookList.scss";
@@ -26,6 +25,7 @@ import { FiEdit, FiTrash2, FiShare2 } from "react-icons/fi";
 import { downloadTxT } from "../../utils/common";
 import PasscodeSetting from "./Setting/PasscodeSetting";
 import CheckVersion from "./Setting/CheckVersion";
+import Footer from "../../components/Footer";
 
 const LONG_PRESS_MS = 500;
 
@@ -203,7 +203,7 @@ const BookList: React.FC = () => {
       {/* ===== Header ===== */}
       {!selectMode ? (
         <NavBar
-          backArrow={false}
+          backIcon={false}
           left={
             <span
               role="button"
@@ -238,8 +238,16 @@ const BookList: React.FC = () => {
         </NavBar>
       ) : (
         <NavBar
-          backArrow={<CloseOutline fontSize={20} />}
-          onBack={exitSelectMode}
+          backIcon={false}
+          left={
+            <span
+              role="button"
+              onClick={exitSelectMode}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+            >
+              <CloseOutline fontSize={20} />
+            </span>
+          }
           right={
             <span
               role="button"
@@ -264,9 +272,8 @@ const BookList: React.FC = () => {
           return (
             <div
               key={book.id}
-              className={`book-card ${selectMode ? "select-mode" : ""} ${
-                checked ? "selected" : ""
-              }`}
+              className={`book-card ${selectMode ? "select-mode" : ""} ${checked ? "selected" : ""
+                }`}
               onClick={() => onCardClick(book)}
               onMouseDown={() => startPressTimer(book.id)}
               onMouseUp={clearPressTimer}
@@ -318,9 +325,13 @@ const BookList: React.FC = () => {
         })}
       </div>
 
+      <div style={{ flex: 1 }} />
+
+      <Footer />
+
       {/* ===== 底部刪除列（選取模式顯示） ===== */}
       {selectMode && (
-        <div className="bottom-action-bar">
+        <div className="bottom-action-bar" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           {selectedIds.size === 1 && (
             <button
               className="action-btn edit-btn"
@@ -380,7 +391,7 @@ const BookList: React.FC = () => {
         disableBodyScroll={false}
         // 全屏
         bodyStyle={{
-          height: "100vh",
+          height: "100dvh",
           width: "100vw",
           padding: 0,
           background: "#fff",
@@ -408,7 +419,7 @@ const BookList: React.FC = () => {
         showCloseButton={false}
         disableBodyScroll={false}
         bodyStyle={{
-          height: "100vh",
+          height: "100dvh",
           width: "100vw",
           padding: 0,
           background: "#fff",

@@ -7,8 +7,10 @@
 /* 禁止文字被選取 */
 * {
   user-select: none;
-  -webkit-user-select: none; /* Safari */
-  -ms-user-select: none; /* 舊版 Edge */
+  -webkit-user-select: none;
+  /* Safari */
+  -ms-user-select: none;
+  /* 舊版 Edge */
 }
 
 html,
@@ -20,9 +22,7 @@ body,
 
 body {
   /* 確保內容不會被 iPhone 的瀏海或底部的 Home Bar 擋住 */
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
 
   /* 為了讓背景顏色延伸到狀態欄，背景色要設在 body 或 html 上 */
-  background-color: #ffffff;
+  background-color: #f7f7f7;
 }

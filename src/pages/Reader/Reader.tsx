@@ -302,7 +302,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       void writeProgressNow();
       try {
         window.speechSynthesis?.cancel();
-      } catch {}
+      } catch { }
     };
   }, [writeProgressNow]);
 
@@ -427,7 +427,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
     if (!paragraphs.length) return;
     try {
       window.speechSynthesis.cancel();
-    } catch {}
+    } catch { }
     const startIdx = findParagraphAtScroll(
       containerRef.current?.scrollTop ?? 0,
     );
@@ -445,7 +445,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
         currentUtteranceRef.current.onend = null;
       }
       window.speechSynthesis.cancel();
-    } catch {}
+    } catch { }
   }, []);
 
   return (
@@ -545,6 +545,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       {/* footer */}
       <footer
         className={`reader-footer  ${showUI ? "open" : "close"}`}
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         onClick={(e) => {
           e.stopPropagation();
         }}

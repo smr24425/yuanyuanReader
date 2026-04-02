@@ -12,7 +12,6 @@ const Footer: React.FC = () => {
         fontSize: 12,
       }}
     >
-      <div>v{__APP_VERSION__}</div>
       <div>© {new Date().getFullYear()} smr24425. All rights reserved.</div>
     </footer>
   );
