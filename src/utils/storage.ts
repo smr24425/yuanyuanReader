@@ -97,13 +97,22 @@ export const getAppPasscode = (): string | null => {
 };
 
 /** 設定/更新密碼 */
-export const setAppPasscode = (code: string): void => {
+export const setAppPasscode = (code: string) => {
   safeSetItem(STORAGE_KEYS.passcode, code);
 };
-
-/** 移除儲存的密碼 */
-export const removePasscode = (): void => {
+export const removePasscode = () => {
   safeRemoveItem(STORAGE_KEYS.passcode);
+  safeRemoveItem("app_webauthn_id");
+};
+export const getWebAuthnId = (): string | null => {
+  return safeGetItem("app_webauthn_id");
+};
+export const setWebAuthnId = (id: string | null) => {
+  if (id) {
+    safeSetItem("app_webauthn_id", id);
+  } else {
+    safeRemoveItem("app_webauthn_id");
+  }
 };
 
 /** 驗證輸入的密碼是否正確 */

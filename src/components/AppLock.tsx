@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { CenterPopup, Input, Toast, Button, Space } from "antd-mobile";
-import { LockOutline } from "antd-mobile-icons";
-import { getPasscodeEnabled, verifyPasscode } from "../utils/storage";
+import { LockOutline, ScanCodeOutline } from "antd-mobile-icons";
+import { getPasscodeEnabled, verifyPasscode, getWebAuthnId } from "../utils/storage";
+import { verifyBiometric } from "../utils/webauthn";
 
 interface AppLockProps {
   children: React.ReactNode;
@@ -10,6 +11,27 @@ interface AppLockProps {
 const AppLock: React.FC<AppLockProps> = ({ children }) => {
   const [isLocked, setIsLocked] = useState(getPasscodeEnabled());
   const [inputVal, setInputVal] = useState("");
+  const bioAttempted = useRef(false);
+  const webAuthnId = getWebAuthnId();
+
+  const handleBiometricUnlock = async () => {
+    if (webAuthnId) {
+      const valid = await verifyBiometric(webAuthnId);
+      if (valid) {
+        setIsLocked(false);
+        Toast.show({ icon: "success", content: "快速解鎖成功" });
+      } else {
+        Toast.show({ icon: "fail", content: "辨識失敗，請輸入密碼" });
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isLocked && webAuthnId && !bioAttempted.current) {
+      bioAttempted.current = true;
+      handleBiometricUnlock();
+    }
+  }, [isLocked, webAuthnId]);
 
   // 如果根本沒啟動密碼保護，直接過關
   if (!isLocked) {
@@ -71,6 +93,18 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
             >
               進入書庫
             </Button>
+            {webAuthnId && (
+              <Button
+                block
+                fill="none"
+                color="primary"
+                onClick={handleBiometricUnlock}
+                style={{ borderRadius: "8px", marginTop: "8px" }}
+              >
+                <ScanCodeOutline style={{ marginRight: 6 }} />
+                使用 Face ID / Touch ID 解鎖
+              </Button>
+            )}
           </Space>
         </div>
       </CenterPopup>

@@ -9,7 +9,9 @@ import {
   removePasscode,
   getTabSwipeLocked,
   setTabSwipeLocked,
+  setWebAuthnId,
 } from "../../../utils/storage";
+import { isWebAuthnAvailable, registerBiometric } from "../../../utils/webauthn";
 
 const PasscodeSetting: React.FC = () => {
   // 從儲存層讀取初始狀態
@@ -68,8 +70,27 @@ const PasscodeSetting: React.FC = () => {
         }
         setAppPasscode(tempPasscode);
         setHasPasscode(true);
-        Toast.show({ icon: "success", content: "設定成功" });
+        Toast.show({ icon: "success", content: "密碼設定成功" });
         onSuccess?.();
+
+        // 如果裝置支援 WebAuthn，詢問是否要順便開啟 FaceID/TouchID
+        if (isWebAuthnAvailable()) {
+          const wantBio = await Dialog.confirm({
+            title: "啟用快速解鎖",
+            content: "是否要同時綁定 Face ID 或 Touch ID 進行快速解鎖？",
+            confirmText: "啟用",
+            cancelText: "不用了",
+          });
+          if (wantBio) {
+            const credentialId = await registerBiometric();
+            if (credentialId) {
+              setWebAuthnId(credentialId);
+              Toast.show({ icon: "success", content: "快速解鎖綁定成功" });
+            } else {
+              Toast.show({ icon: "fail", content: "綁定失敗或被取消" });
+            }
+          }
+        }
       },
       onCancel: () => {
         onCancel?.();
