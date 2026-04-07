@@ -103,7 +103,6 @@ export const setAppPasscode = (code: string) => {
 };
 export const removePasscode = () => {
   safeRemoveItem(STORAGE_KEYS.passcode);
-  safeRemoveItem("app_webauthn_id");
 };
 export const getWebAuthnId = (): string | null => {
   return safeGetItem("app_webauthn_id");

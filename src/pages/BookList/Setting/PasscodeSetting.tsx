@@ -11,6 +11,7 @@ import {
   setTabSwipeLocked,
   setWebAuthnId,
   getBiometricEnabled,
+  setBiometricEnabled,
 } from "../../../utils/storage";
 import { isWebAuthnAvailable, registerBiometric } from "../../../utils/webauthn";
 
@@ -87,27 +88,34 @@ const PasscodeSetting: React.FC = () => {
           content: "是否要同時綁定 Face ID 或 Touch ID 進行快速解鎖？",
           confirmText: "啟用",
           cancelText: "不用了",
-          onConfirm: () => {
-            setIsBiometric(val);
-          }
         });
         if (wantBio) {
           const credentialId = await registerBiometric();
           if (credentialId) {
             setWebAuthnId(credentialId);
+            setIsBiometric(true);
+            setBiometricEnabled(true);
             Toast.show({ icon: "success", content: "快速解鎖綁定成功" });
           } else {
             Toast.show({ icon: "fail", content: "綁定失敗或被取消" });
             setIsBiometric(false);
+            setBiometricEnabled(false);
           }
+        } else {
+          setIsBiometric(false);
         }
       } else {
         Toast.show({ icon: "fail", content: "不支援生物鎖" });
+        setIsBiometric(false);
       }
-      return
+      return;
     }
     setIsBiometric(val);
-  }
+    setBiometricEnabled(val);
+    if (!val) {
+      setWebAuthnId(null);
+    }
+  };
 
   /**
    * 處理開關切換

@@ -9,8 +9,13 @@ interface AppLockProps {
 }
 
 const AppLock: React.FC<AppLockProps> = ({ children }) => {
-  const [isPasscodeEnabled, setIsPasscodeEnabled] = useState(getPasscodeEnabled());
-  const [isBiometricEnabled, setIsBiometricEnabled] = useState(getBiometricEnabled());
+  // 檢查個別鎖定狀態
+  const isPasscodeSettingEnabled = getPasscodeEnabled();
+  const isBiometricSettingEnabled = getBiometricEnabled();
+  
+  // 如果有任一鎖定被啟用，一開始就進入鎖定狀態
+  const [isLocked, setIsLocked] = useState(isPasscodeSettingEnabled || isBiometricSettingEnabled);
+  
   const [inputVal, setInputVal] = useState("");
   const bioAttempted = useRef(false);
   const webAuthnId = getWebAuthnId();
@@ -19,31 +24,29 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
     if (webAuthnId) {
       const valid = await verifyBiometric(webAuthnId);
       if (valid) {
-        setIsBiometricEnabled(false);
-        setIsPasscodeEnabled(false);
+        setIsLocked(false);
         Toast.show({ icon: "success", content: "快速解鎖成功" });
       } else {
-        Toast.show({ icon: "fail", content: "辨識失敗，請輸入密碼" });
+        Toast.show({ icon: "fail", content: "辨識失敗" + (isPasscodeSettingEnabled ? "，請輸入密碼" : "，請重試") });
       }
     }
   };
 
   useEffect(() => {
-    if (isPasscodeEnabled && webAuthnId && !bioAttempted.current) {
+    if (isLocked && isBiometricSettingEnabled && webAuthnId && !bioAttempted.current) {
       bioAttempted.current = true;
       handleBiometricUnlock();
     }
-  }, [isPasscodeEnabled, webAuthnId]);
+  }, [isLocked, isBiometricSettingEnabled, webAuthnId]);
 
-  // 如果根本沒啟動密碼保護，直接過關
-  if (!isPasscodeEnabled && !isBiometricEnabled) {
+  // 如果已經解除鎖定或根本沒開啟任何保護，直接渲染子組件
+  if (!isLocked) {
     return <>{children}</>;
   }
 
   const handleVerify = () => {
     if (verifyPasscode(inputVal)) {
-      setIsPasscodeEnabled(false);
-      setIsBiometricEnabled(false);
+      setIsLocked(false);
       Toast.show({ icon: "success", content: "驗證成功" });
     } else {
       Toast.show({ icon: "fail", content: "密碼錯誤" });
@@ -55,7 +58,7 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
     <>
       {/* 當鎖定時，顯示一個無法關閉的全螢幕彈窗 */}
       <CenterPopup
-        visible={isPasscodeEnabled}
+        visible={isLocked}
         // maskClosable={false}
         bodyStyle={{
           width: "80vw",
@@ -73,33 +76,39 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
             >
               淵淵閱讀 - 安全驗證
             </div>
-            {isPasscodeEnabled && <Input
-              type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="請輸入 4 位數密碼"
-              value={inputVal}
-              onChange={setInputVal}
-              maxLength={4}
-              style={{
-                "--font-size": "24px",
-                textAlign: "center",
-                borderBottom: "2px solid #eee",
-                margin: "20px 0",
-              }}
-              onEnterPress={handleVerify}
-            />}
-            {isPasscodeEnabled && <Button
-              block
-              onClick={handleVerify}
-              style={{ borderRadius: "8px" }}
-            >
-              進入書庫
-            </Button>}
-            {webAuthnId && isPasscodeEnabled && (
+            
+            {isPasscodeSettingEnabled && (
+              <>
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="請輸入 4 位數密碼"
+                  value={inputVal}
+                  onChange={setInputVal}
+                  maxLength={4}
+                  style={{
+                    "--font-size": "24px",
+                    textAlign: "center",
+                    borderBottom: "2px solid #eee",
+                    margin: "20px 0",
+                  }}
+                  onEnterPress={handleVerify}
+                />
+                <Button
+                  block
+                  onClick={handleVerify}
+                  style={{ borderRadius: "8px" }}
+                >
+                  進入書庫
+                </Button>
+              </>
+            )}
+
+            {isBiometricSettingEnabled && webAuthnId && (
               <Button
                 block
-                fill="none"
+                fill={isPasscodeSettingEnabled ? "none" : "solid"}
                 color="primary"
                 onClick={handleBiometricUnlock}
                 style={{ borderRadius: "8px", marginTop: "8px" }}
@@ -108,12 +117,16 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
                 使用 Face ID / Touch ID 解鎖
               </Button>
             )}
+            
+            {/* 假如沒有設定密碼，可是生物辨識失敗了，給個重試提示 */}
+            {!isPasscodeSettingEnabled && isBiometricSettingEnabled && webAuthnId && (
+              <div style={{ fontSize: 12, color: '#999', marginTop: 12 }}>
+                如果驗證失敗，請點選上方按鈕重試
+              </div>
+            )}
           </Space>
         </div>
       </CenterPopup>
-
-      {/* 只有解鎖後才會渲染真正的 BookList 內容 */}
-      {(!isPasscodeEnabled && !isBiometricEnabled) && children}
     </>
   );
 };
