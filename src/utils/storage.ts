@@ -2,7 +2,8 @@ const STORAGE_KEYS = {
   readerFontSize: "reader.fontSize",
   readerBgColor: "reader.bgColor",
   readerTextColor: "reader.textColor",
-  isEnabled: "isPasscodeEnabled",
+  isPasscodeEnabled: "isPasscodeEnabled",
+  isBiometricEnabled: "isBiometricEnabled",
   passcode: "appPasscode",
   lockTabSwipe: "lockTabSwipe",
 } as const;
@@ -83,12 +84,12 @@ export const setReaderTextColor = (color: string): void => {
 
 /** 檢查是否啟用了密碼保護 */
 export const getPasscodeEnabled = (): boolean => {
-  return safeGetItem(STORAGE_KEYS.isEnabled) === "true";
+  return safeGetItem(STORAGE_KEYS.isPasscodeEnabled) === "true";
 };
 
 /** 設定密碼保護開關 */
 export const setPasscodeEnabled = (enabled: boolean): void => {
-  safeSetItem(STORAGE_KEYS.isEnabled, String(enabled));
+  safeSetItem(STORAGE_KEYS.isPasscodeEnabled, String(enabled));
 };
 
 /** 獲取儲存的密碼 */
@@ -113,6 +114,14 @@ export const setWebAuthnId = (id: string | null) => {
   } else {
     safeRemoveItem("app_webauthn_id");
   }
+};
+export const getBiometricEnabled = (): boolean => {
+  return safeGetItem(STORAGE_KEYS.isBiometricEnabled) === "true";
+};
+
+/** 設定密碼保護開關 */
+export const setBiometricEnabled = (enabled: boolean): void => {
+  safeSetItem(STORAGE_KEYS.isBiometricEnabled, String(enabled));
 };
 
 /** 驗證輸入的密碼是否正確 */

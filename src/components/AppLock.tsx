@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CenterPopup, Input, Toast, Button, Space } from "antd-mobile";
 import { LockOutline, ScanCodeOutline } from "antd-mobile-icons";
-import { getPasscodeEnabled, verifyPasscode, getWebAuthnId } from "../utils/storage";
+import { getPasscodeEnabled, verifyPasscode, getWebAuthnId, getBiometricEnabled } from "../utils/storage";
 import { verifyBiometric } from "../utils/webauthn";
 
 interface AppLockProps {
@@ -9,7 +9,8 @@ interface AppLockProps {
 }
 
 const AppLock: React.FC<AppLockProps> = ({ children }) => {
-  const [isLocked, setIsLocked] = useState(getPasscodeEnabled());
+  const [isPasscodeEnabled, setIsPasscodeEnabled] = useState(getPasscodeEnabled());
+  const [isBiometricEnabled, setIsBiometricEnabled] = useState(getBiometricEnabled());
   const [inputVal, setInputVal] = useState("");
   const bioAttempted = useRef(false);
   const webAuthnId = getWebAuthnId();
@@ -18,7 +19,8 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
     if (webAuthnId) {
       const valid = await verifyBiometric(webAuthnId);
       if (valid) {
-        setIsLocked(false);
+        setIsBiometricEnabled(false);
+        setIsPasscodeEnabled(false);
         Toast.show({ icon: "success", content: "快速解鎖成功" });
       } else {
         Toast.show({ icon: "fail", content: "辨識失敗，請輸入密碼" });
@@ -27,20 +29,21 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    if (isLocked && webAuthnId && !bioAttempted.current) {
+    if (isPasscodeEnabled && webAuthnId && !bioAttempted.current) {
       bioAttempted.current = true;
       handleBiometricUnlock();
     }
-  }, [isLocked, webAuthnId]);
+  }, [isPasscodeEnabled, webAuthnId]);
 
   // 如果根本沒啟動密碼保護，直接過關
-  if (!isLocked) {
+  if (!isPasscodeEnabled && !isBiometricEnabled) {
     return <>{children}</>;
   }
 
   const handleVerify = () => {
     if (verifyPasscode(inputVal)) {
-      setIsLocked(false);
+      setIsPasscodeEnabled(false);
+      setIsBiometricEnabled(false);
       Toast.show({ icon: "success", content: "驗證成功" });
     } else {
       Toast.show({ icon: "fail", content: "密碼錯誤" });
@@ -52,7 +55,7 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
     <>
       {/* 當鎖定時，顯示一個無法關閉的全螢幕彈窗 */}
       <CenterPopup
-        visible={isLocked}
+        visible={isPasscodeEnabled}
         // maskClosable={false}
         bodyStyle={{
           width: "80vw",
@@ -70,7 +73,7 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
             >
               淵淵閱讀 - 安全驗證
             </div>
-            <Input
+            {isPasscodeEnabled && <Input
               type="password"
               inputMode="numeric"
               pattern="[0-9]*"
@@ -85,15 +88,15 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
                 margin: "20px 0",
               }}
               onEnterPress={handleVerify}
-            />
-            <Button
+            />}
+            {isPasscodeEnabled && <Button
               block
               onClick={handleVerify}
               style={{ borderRadius: "8px" }}
             >
               進入書庫
-            </Button>
-            {webAuthnId && (
+            </Button>}
+            {webAuthnId && isPasscodeEnabled && (
               <Button
                 block
                 fill="none"
@@ -110,7 +113,7 @@ const AppLock: React.FC<AppLockProps> = ({ children }) => {
       </CenterPopup>
 
       {/* 只有解鎖後才會渲染真正的 BookList 內容 */}
-      {!isLocked && children}
+      {(!isPasscodeEnabled && !isBiometricEnabled) && children}
     </>
   );
 };

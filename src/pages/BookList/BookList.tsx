@@ -345,6 +345,70 @@ const BookList: React.FC = () => {
     </div>
   );
 
+  const renderEpubBookGrid = (bookList: Book[]) => (
+    <div className="book-grid epub-horizontal-list">
+      {bookList.map((book) => {
+        const readPercent = calcPercent(book);
+        const checked = book.id ? selectedIds.has(book.id) : false;
+
+        return (
+          <div
+            key={book.id}
+            className={`book-card epub-card-horizontal ${selectMode ? "select-mode" : ""} ${checked ? "selected" : ""
+              }`}
+            onClick={() => onCardClick(book)}
+            onMouseDown={() => startPressTimer(book.id)}
+            onMouseUp={clearPressTimer}
+            onMouseLeave={clearPressTimer}
+            onTouchStart={() => startPressTimer(book.id)}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={clearPressTimer}
+          >
+            {/* 選取模式的勾選框 */}
+            {selectMode && (
+              <div className="select-badge">
+                <Badge
+                  content={checked ? <CheckOutline /> : null}
+                  color={checked ? "var(--adm-color-primary)" : "#d9d9d9"}
+                />
+              </div>
+            )}
+
+            <div className="epub-card-content">
+              {/* 左側：圖片區域 */}
+              <div className="epub-cover-left">
+                {book.cover ? (
+                  <img src={book.cover} alt={book.title} />
+                ) : (
+                  <div className="no-cover">無圖片</div>
+                )}
+              </div>
+
+              {/* 右側：文字與進度區域 */}
+              <div className="epub-info-right">
+                <div className="epub-title-text">{book.title}</div>
+                <div className="book-progress">
+                  <ProgressBar
+                    percent={readPercent}
+                    style={{ "--track-width": "4px" }}
+                  />
+                  <div className="progress-info">
+                    <span>{`已閱讀 ${readPercent}%`}</span>
+                    {book.lookedAt && (
+                      <span className="looked-at-time">
+                        {new Date(book.lookedAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div
       className="book-list-container"
@@ -443,7 +507,7 @@ const BookList: React.FC = () => {
             {renderBookGrid(books.filter((b) => b.type !== "epub"))}
           </Swiper.Item>
           <Swiper.Item style={{ overflowY: 'auto' }}>
-            {renderBookGrid(books.filter((b) => b.type === "epub"))}
+            {renderEpubBookGrid(books.filter((b) => b.type === "epub"))}
           </Swiper.Item>
         </Swiper>
       </div>
@@ -630,7 +694,7 @@ const BookList: React.FC = () => {
         <PasscodeSetting />
 
         <List>
-          <List.Item extra={`v${"1.0.0"}`}>
+          <List.Item extra={`v${__APP_VERSION__}`}>
             當前版本
           </List.Item>
         </List>

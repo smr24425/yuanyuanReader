@@ -10,13 +10,14 @@ import {
   getTabSwipeLocked,
   setTabSwipeLocked,
   setWebAuthnId,
+  getBiometricEnabled,
 } from "../../../utils/storage";
 import { isWebAuthnAvailable, registerBiometric } from "../../../utils/webauthn";
 
 const PasscodeSetting: React.FC = () => {
   // 從儲存層讀取初始狀態
-  const [isEnabled, setIsEnabled] = useState<boolean>(getPasscodeEnabled());
-  const [hasPasscode, setHasPasscode] = useState<boolean>(!!getAppPasscode());
+  const [isPasscode, setIsPasscode] = useState<boolean>(getPasscodeEnabled());
+  const [isBiometric, setIsBiometric] = useState<boolean>(getBiometricEnabled());
   const [isTabSwipeLocked, setIsTabSwipeLocked] = useState<boolean>(getTabSwipeLocked());
 
   /**
@@ -69,34 +70,44 @@ const PasscodeSetting: React.FC = () => {
           return Promise.reject(); // 阻止 Dialog 關閉
         }
         setAppPasscode(tempPasscode);
-        setHasPasscode(true);
         Toast.show({ icon: "success", content: "密碼設定成功" });
         onSuccess?.();
-
-        // 如果裝置支援 WebAuthn，詢問是否要順便開啟 FaceID/TouchID
-        if (isWebAuthnAvailable()) {
-          const wantBio = await Dialog.confirm({
-            title: "啟用快速解鎖",
-            content: "是否要同時綁定 Face ID 或 Touch ID 進行快速解鎖？",
-            confirmText: "啟用",
-            cancelText: "不用了",
-          });
-          if (wantBio) {
-            const credentialId = await registerBiometric();
-            if (credentialId) {
-              setWebAuthnId(credentialId);
-              Toast.show({ icon: "success", content: "快速解鎖綁定成功" });
-            } else {
-              Toast.show({ icon: "fail", content: "綁定失敗或被取消" });
-            }
-          }
-        }
       },
       onCancel: () => {
         onCancel?.();
       },
     });
   };
+
+  const handleBiometricToggle = async (val: boolean) => {
+    if (val) {
+      if (isWebAuthnAvailable()) {
+        const wantBio = await Dialog.confirm({
+          title: "啟用快速解鎖",
+          content: "是否要同時綁定 Face ID 或 Touch ID 進行快速解鎖？",
+          confirmText: "啟用",
+          cancelText: "不用了",
+          onConfirm: () => {
+            setIsBiometric(val);
+          }
+        });
+        if (wantBio) {
+          const credentialId = await registerBiometric();
+          if (credentialId) {
+            setWebAuthnId(credentialId);
+            Toast.show({ icon: "success", content: "快速解鎖綁定成功" });
+          } else {
+            Toast.show({ icon: "fail", content: "綁定失敗或被取消" });
+            setIsBiometric(false);
+          }
+        }
+      } else {
+        Toast.show({ icon: "fail", content: "不支援生物鎖" });
+      }
+      return
+    }
+    setIsBiometric(val);
+  }
 
   /**
    * 處理開關切換
@@ -107,11 +118,11 @@ const PasscodeSetting: React.FC = () => {
       showSetPasscodeDialog(
         () => {
           setPasscodeEnabled(true);
-          setIsEnabled(true);
+          setIsPasscode(true);
         },
         () => {
           // 如果取消設定密碼，開關保持關閉
-          setIsEnabled(false);
+          setIsPasscode(false);
         },
       );
       return;
@@ -119,7 +130,7 @@ const PasscodeSetting: React.FC = () => {
 
     // 正常切換
     setPasscodeEnabled(val);
-    setIsEnabled(val);
+    setIsPasscode(val);
     if (val) {
       Toast.show({ content: "已啟用密碼保護", icon: "success" });
     } else {
@@ -133,7 +144,7 @@ const PasscodeSetting: React.FC = () => {
         prefix={<LockOutline />}
         extra={
           <Switch
-            checked={isEnabled}
+            checked={isPasscode}
             onChange={handleToggle}
             style={{
               "--height": "24px",
@@ -141,12 +152,12 @@ const PasscodeSetting: React.FC = () => {
             }}
           />
         }
-        description={isEnabled ? "App 啟動時需驗證" : "目前未受保護"}
+        description={isPasscode ? "App 啟動時需驗證" : "目前未受保護"}
       >
-        密碼保護
+        密碼鎖
       </List.Item>
 
-      {isEnabled && (
+      {isPasscode && (
         <List.Item
           prefix={<EditSOutline />}
           onClick={() => showSetPasscodeDialog()}
@@ -155,6 +166,23 @@ const PasscodeSetting: React.FC = () => {
           修改存取密碼
         </List.Item>
       )}
+
+      <List.Item
+        prefix={<LockOutline />}
+        extra={
+          <Switch
+            checked={isBiometric}
+            onChange={handleBiometricToggle}
+            style={{
+              "--height": "24px",
+              "--width": "42px",
+            }}
+          />
+        }
+        description={isBiometric ? "App 啟動時需驗證" : "目前未受保護"}
+      >
+        生物鎖
+      </List.Item>
 
       <List.Item
         extra={

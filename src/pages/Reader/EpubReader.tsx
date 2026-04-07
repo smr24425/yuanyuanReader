@@ -119,6 +119,71 @@ const EpubReader: React.FC<EpubReaderProps> = ({ bookId, onClose }) => {
         allowScriptedContent: true,
       });
 
+      newRendition.hooks.content.register((contents: any) => {
+        const doc = contents.document;
+        // 抓取所有可能包含圖片資源的標籤
+        const imgs = Array.from(doc.querySelectorAll('img, image')) as HTMLElement[];
+
+        return Promise.all(
+          imgs.map(async (img: any) => {
+            // 1. 取得原始路徑
+            const rawSrc = img.getAttribute('src') || img.getAttribute('xlink:href');
+
+            // 跳過已處理過或外部鏈接
+            if (!rawSrc || rawSrc.startsWith('blob:') || rawSrc.startsWith('http')) {
+              return;
+            }
+
+            try {
+              // 2. 修正路徑解析 (解決 Expected 1 arguments 錯誤)
+              // 在新版 epubjs 中，直接傳入 rawSrc，它會相對於當前 section 解析
+              const href = book.path.resolve(rawSrc);
+
+              // 3. 從 archive 獲取資源 (強制轉為 any 避開 TS 類型錯誤)
+              const archive = book.archive as any;
+
+              // 嘗試獲取 Blob 數據
+              let data: Blob | null = null;
+              if (typeof archive.getBlob === 'function') {
+                data = await archive.getBlob(href);
+              } else {
+                // 備用方案：手動從 get 獲取並轉為 Blob
+                const rawData = await archive.get(href);
+                if (rawData) {
+                  data = new Blob([rawData]);
+                }
+              }
+
+              if (data) {
+                const url = URL.createObjectURL(data);
+                // 4. 替換路徑
+                if (img.tagName.toLowerCase() === 'img') {
+                  img.src = url;
+                } else {
+                  img.setAttribute('xlink:href', url);
+                }
+              }
+            } catch (err) {
+              console.warn("圖片加載出錯:", rawSrc, err);
+            }
+          })
+        ).then(() => {
+          // 5. 確保樣式正確，防止圖片因為 CSS 隱藏
+          contents.addStylesheetRules({
+            "img": {
+              "max-width": "100% !important",
+              "height": "auto !important",
+              "display": "inline-block !important",
+              "visibility": "visible !important"
+            },
+            "image": {
+              "max-width": "100% !important",
+              "height": "auto !important"
+            }
+          });
+        });
+      });
+
       newRendition.on("relocated", (location: any) => {
         let newPercent: number | undefined = undefined;
         if (book.locations.length() > 0) {
