@@ -76,7 +76,7 @@ const PasscodeSetting: React.FC = () => {
         // 如果裝置支援 WebAuthn，詢問是否要順便開啟 FaceID/TouchID
         if (isWebAuthnAvailable()) {
           const wantBio = await Dialog.confirm({
-            title: "啟用快速解鎖",
+            title: "啟用生物鎖",
             content: "是否要同時綁定 Face ID 或 Touch ID 進行快速解鎖？",
             confirmText: "啟用",
             cancelText: "不用了",
@@ -85,9 +85,9 @@ const PasscodeSetting: React.FC = () => {
             const credentialId = await registerBiometric();
             if (credentialId) {
               setWebAuthnId(credentialId);
-              Toast.show({ icon: "success", content: "快速解鎖綁定成功" });
+              Toast.show({ icon: "success", content: "生物鎖啟用成功" });
             } else {
-              Toast.show({ icon: "fail", content: "綁定失敗或被取消" });
+              Toast.show({ icon: "fail", content: "生物鎖啟用失敗" });
             }
           }
         }
