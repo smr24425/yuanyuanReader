@@ -146,18 +146,21 @@ const BookList: React.FC = () => {
           toastHandler.close();
         }
 
-        await db.books.add({
+        const bookId = await db.books.add({
           title,
-          content: "",
-          chapters: [],
           type: "epub",
-          fileData: arrayBuffer,
           cover: coverBase64,
-          locationsDB: locationsStr,
           percent: 0,
           totalScrollablePx: 0,
           progressPx: 0,
+          chapters: [],
           lookedAt: Date.now(),
+        });
+        await db.bookContents.add({
+          bookId,
+          content: "",
+          fileData: arrayBuffer,
+          locationsDB: locationsStr,
         });
         Toast.show({ content: "EPUB 上傳成功", icon: "success" });
         setActiveTabKey("epub");
@@ -167,15 +170,18 @@ const BookList: React.FC = () => {
         const title = file.name.replace(/\.txt$/i, "");
         const chapters = parseChapters(text);
 
-        await db.books.add({
+        const bookId = await db.books.add({
           title,
-          content: text,
           type: "txt",
           percent: 0,
           totalScrollablePx: 0,
           progressPx: 0,
           chapters,
           lookedAt: Date.now(),
+        });
+        await db.bookContents.add({
+          bookId,
+          content: text,
         });
         Toast.show({ content: "TXT 上傳成功", icon: "success" });
         setActiveTabKey("txt");
@@ -207,6 +213,7 @@ const BookList: React.FC = () => {
 
     try {
       await db.books.bulkDelete(Array.from(selectedIds));
+      await db.bookContents.bulkDelete(Array.from(selectedIds));
       Toast.show({ content: "刪除完成", icon: "success" });
       await loadBooks();
       exitSelectMode();
@@ -535,7 +542,7 @@ const BookList: React.FC = () => {
           {selectedIds.size === 1 && activeTabKey === "txt" && (
             <button
               className="action-btn share-btn"
-              onClick={() => {
+              onClick={async () => {
                 if (selectedIds.size === 0) {
                   Toast.show({ content: "請先選取要分享的書籍" });
                   return;
@@ -547,7 +554,8 @@ const BookList: React.FC = () => {
                   Toast.show({ content: "找不到書籍", icon: "fail" });
                   return;
                 }
-                downloadTxT(book.title, book.content);
+                const bookContent = await db.bookContents.get(selectedId);
+                downloadTxT(book.title, bookContent?.content || "");
                 Toast.show({ content: "分享成功", icon: "success" });
               }}
               aria-label="分享"

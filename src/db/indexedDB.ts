@@ -4,22 +4,28 @@ import Dexie, { type Table } from "dexie";
 export interface Book {
   id?: number;
   type?: "txt" | "epub";
-  fileData?: ArrayBuffer;
   cover?: string; // base64 string or blob URL
   title: string;
-  content: string;
   chapters: { title: string }[];
   progressPx?: number;
   totalScrollablePx?: number;
   percent?: number; // 0~100
   progressCfi?: string;
-  locationsDB?: string; // Cached JSON string of generated locations
   updatedAt?: number;
   lookedAt: number;
 }
 
+export interface BookContent {
+  bookId: number;
+  content: string; // 用於 TXT
+  fileData?: ArrayBuffer; // 用於 EPUB
+  locationsDB?: string; // Cached JSON string of generated locations
+}
+
 class MyDB extends Dexie {
   books!: Table<Book, number>;
+  bookContents!: Table<BookContent, number>;
+
   constructor() {
     super("mydb");
     // 版本升級：新增欄位不用變 index 定義即可寫入
@@ -45,6 +51,32 @@ class MyDB extends Dexie {
           if (b.type === undefined) b.type = "txt";
         });
     });
+
+    // 版本 4：拆分 bookContents
+    this.version(4)
+      .stores({
+        books: "++id,title", // 保持不變
+        bookContents: "bookId", // 新表以 bookId 作為 PK
+      })
+      .upgrade(async (tx) => {
+        const booksArray = await tx.table("books").toArray();
+        const bookContentsData = booksArray.map((b: any) => ({
+          bookId: b.id,
+          content: b.content || "",
+          fileData: b.fileData,
+          locationsDB: b.locationsDB,
+        }));
+
+        if (bookContentsData.length > 0) {
+          await tx.table("bookContents").bulkPut(bookContentsData);
+        }
+
+        return tx.table("books").toCollection().modify((b: any) => {
+          delete b.content;
+          delete b.fileData;
+          delete b.locationsDB;
+        });
+      });
   }
 }
 

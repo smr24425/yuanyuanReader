@@ -68,14 +68,15 @@ const EpubReader: React.FC<EpubReaderProps> = ({ bookId, onClose }) => {
     (async () => {
       try {
         const dbBook = await db.books.get(bookId);
+        const bookContent = await db.bookContents.get(bookId);
         if (!mounted) return;
-        if (!dbBook || !dbBook.fileData) {
+        if (!dbBook || !bookContent?.fileData) {
           Toast.show({ content: "找不到書籍檔案", icon: "fail" });
           onClose();
           return;
         }
 
-        epubBookInstance = ePub(dbBook.fileData);
+        epubBookInstance = ePub(bookContent.fileData);
         setBook(epubBookInstance);
 
         epubBookInstance.ready.then(() => {
@@ -204,7 +205,8 @@ const EpubReader: React.FC<EpubReaderProps> = ({ bookId, onClose }) => {
         db.books.update(bookId, updateData);
       });
 
-      db.books.get(bookId).then(dbBook => {
+      db.books.get(bookId).then(async dbBook => {
+        const bookContent = await db.bookContents.get(bookId);
         if (dbBook?.percent) setCurrentPercentage(Math.round(dbBook.percent));
 
         // 1. 設定主題與樣式 (必須在 display 之前，以確保排版與字體大小正確，否則跳頁與進度條會不精準)
@@ -218,9 +220,9 @@ const EpubReader: React.FC<EpubReaderProps> = ({ bookId, onClose }) => {
         } catch (e) { }
 
         // 2. 如果資料庫中已有 locations 快取，載入它支援精準百分比判斷
-        if (dbBook?.locationsDB && book.locations.length() === 0) {
+        if (bookContent?.locationsDB && book.locations.length() === 0) {
           try {
-            book.locations.load(JSON.parse(dbBook.locationsDB));
+            book.locations.load(JSON.parse(bookContent.locationsDB));
           } catch (e) {
             console.warn("無法載入 locations 快取", e);
           }

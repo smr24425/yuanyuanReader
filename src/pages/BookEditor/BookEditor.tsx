@@ -22,16 +22,18 @@ const BookEditor: React.FC<BookEditorProps> = ({ bookId, onClose }) => {
   useEffect(() => {
     (async () => {
       const book = await db.books.get(bookId);
+      const bookContent = await db.bookContents.get(bookId);
       if (book) {
         setTitle(book.title);
-        setContent(book.content);
+        setContent(bookContent?.content || "");
       }
     })();
   }, [bookId]);
 
   // 儲存按鈕
   const handleSave = async () => {
-    await db.books.update(bookId, { title, content, updatedAt: Date.now() });
+    await db.books.update(bookId, { title, updatedAt: Date.now() });
+    await db.bookContents.update(bookId, { content });
     Toast.show({ content: "保存成功", icon: "success" });
   };
 

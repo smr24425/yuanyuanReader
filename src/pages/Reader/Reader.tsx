@@ -99,14 +99,16 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const b = (await db.books.get(Number(bookId))) as Book | undefined;
+      const b = await db.books.get(Number(bookId));
       if (!mounted) return;
       if (!b) {
         Toast.show({ content: "找不到書籍資料", icon: "fail" });
         onClose();
         return;
       }
-      setBook(b);
+      const contentData = await db.bookContents.get(Number(bookId));
+      if (!mounted) return;
+      setBook({ ...b, content: contentData?.content || "" } as unknown as Book);
     })();
     return () => {
       mounted = false;
