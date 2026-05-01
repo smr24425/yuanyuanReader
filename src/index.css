@@ -13,6 +13,13 @@
   /* 舊版 Edge */
 }
 
+/* 確保輸入框在 iOS 15 等舊版本仍可正常聚焦與輸入 */
+input,
+textarea {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
 html,
 body,
 #root {
