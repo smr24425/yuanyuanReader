@@ -14,6 +14,9 @@ import {
 } from "../../utils/storage";
 import "./Reader.scss"; // 共用 Reader 樣式
 import ReaderFooterBgColor from "./ReaderFooterBgColor";
+import ReaderSearchPage from "../../components/ReaderSearchPage/ReaderSearchPage";
+import { searchEpub, type EpubSearchResult } from "../../utils/epubSearch";
+import { FiSearch } from "react-icons/fi";
 
 interface EpubReaderProps {
   bookId: number;
@@ -35,6 +38,12 @@ const EpubReader: React.FC<EpubReaderProps> = ({ bookId, onClose }) => {
   const [chapters, setChapters] = useState<{ title: string; href: string; index: number }[]>([]);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1);
   const [currentPercentage, setCurrentPercentage] = useState(0);
+
+  const [showSearchPage, setShowSearchPage] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");
+  const [searchResults, setSearchResults] = useState<EpubSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // --- Theme Update ---
   useEffect(() => {
@@ -352,6 +361,61 @@ const EpubReader: React.FC<EpubReaderProps> = ({ bookId, onClose }) => {
     setShowMenu(false);
   };
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedKeyword(searchInput.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    if (!debouncedKeyword || !book) {
+      setSearchResults([]);
+      return;
+    }
+
+    let cancelled = false;
+    setIsSearching(true);
+    searchEpub(book, debouncedKeyword)
+      .then((results) => {
+        if (cancelled) return;
+        setSearchResults(results);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSearchResults([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsSearching(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedKeyword, book]);
+
+  const handleSelectSearchResult = useCallback(
+    async (index: number) => {
+      if (!rendition || index < 0 || index >= searchResults.length) return;
+      const result = searchResults[index];
+      try {
+        await rendition.display(result.cfi);
+        setShowSearchPage(false);
+      } catch {
+        // ignore display errors
+      }
+    },
+    [rendition, searchResults],
+  );
+
+  const openSearchPage = useCallback(() => {
+    setShowSearchPage(true);
+  }, []);
+
+  const closeSearchPage = useCallback(() => {
+    setShowSearchPage(false);
+  }, []);
+
   return (
     <div
       style={{
@@ -367,7 +431,26 @@ const EpubReader: React.FC<EpubReaderProps> = ({ bookId, onClose }) => {
       <NavBar
         onBack={onClose}
         className={`reader-header ${showUI ? "open" : "close"}`}
-        backArrow={<span style={{ color: "#fff" }}>←</span>}
+        backArrow={
+          <span className="reader-header__nav-action" aria-hidden="true">
+            ←
+          </span>
+        }
+        right={
+          !showSearchPage ? (
+            <button
+              type="button"
+              className="reader-header__nav-action"
+              aria-label="搜尋"
+              onClick={(e) => {
+                e.stopPropagation();
+                openSearchPage();
+              }}
+            >
+              <FiSearch />
+            </button>
+          ) : null
+        }
       >
         閱讀 EPUB
       </NavBar>
@@ -381,6 +464,20 @@ const EpubReader: React.FC<EpubReaderProps> = ({ bookId, onClose }) => {
           goToChapter(chapters[index].href);
         }}
         currentChapterIndex={currentChapterIndex}
+      />
+
+      <ReaderSearchPage
+        visible={showSearchPage}
+        keyword={searchInput}
+        onKeywordChange={setSearchInput}
+        results={searchResults}
+        isSearching={isSearching}
+        bgColor={bgColor}
+        textColor={textColor}
+        onSelectResult={(index) => {
+          void handleSelectSearchResult(index);
+        }}
+        onClose={closeSearchPage}
       />
 
       <div className="reader-current-chapter">

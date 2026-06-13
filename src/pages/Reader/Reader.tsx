@@ -20,12 +20,23 @@ import {
 } from "../../utils/storage";
 import "./Reader.scss";
 import ReaderFooterBgColor from "./ReaderFooterBgColor";
-import { FiHeadphones } from "react-icons/fi";
+import ReaderSearchPage from "../../components/ReaderSearchPage/ReaderSearchPage";
+import {
+  buildTextSearchResults,
+  findParagraphIndex,
+  type TextSearchResult,
+} from "../../utils/textSearch";
+import { FiHeadphones, FiSearch } from "react-icons/fi";
 import { BsStopCircle } from "react-icons/bs";
 
 interface Chapter {
   title: string;
   index: number;
+}
+interface Paragraph {
+  text: string;
+  chapterIndex: number | null;
+  contentStart: number;
 }
 interface Book {
   id: number;
@@ -79,6 +90,11 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const isReadingRef = useRef(false);
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
+  const [showSearchPage, setShowSearchPage] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");
+  const [searchResults, setSearchResults] = useState<TextSearchResult[]>([]);
+
   // 監聽 localStorage 更新（如果你想監控外部改變，可以加事件listener）
   useEffect(() => {
     function onStorageChange(e: StorageEvent) {
@@ -123,7 +139,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   }, [bookId]);
 
   const paragraphs = useMemo(() => {
-    if (!book) return [] as { text: string; chapterIndex: number | null }[];
+    if (!book) return [] as Paragraph[];
 
     const text = book.content;
     const chapters = (book.chapters ?? [])
@@ -131,14 +147,20 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       .sort((a, b) => a.index - b.index);
 
     if (chapters.length === 0) {
-      return text
-        .split(/\n\s*\n+/g)
-        .map((t) => t.trim())
-        .filter(Boolean)
-        .map((t) => ({ text: t, chapterIndex: null }));
+      const paras: Paragraph[] = [];
+      let searchFrom = 0;
+      for (const block of text.split(/\n\s*\n+/g)) {
+        const trimmed = block.trim();
+        if (!trimmed) continue;
+        const idx = text.indexOf(trimmed, searchFrom);
+        const contentStart = idx >= 0 ? idx : searchFrom;
+        paras.push({ text: trimmed, chapterIndex: null, contentStart });
+        searchFrom = idx >= 0 ? idx + trimmed.length : searchFrom + trimmed.length;
+      }
+      return paras;
     }
 
-    const paras: { text: string; chapterIndex: number | null }[] = [];
+    const paras: Paragraph[] = [];
     for (let i = 0; i < chapters.length; i++) {
       const start = chapters[i].index;
       const end = i + 1 < chapters.length ? chapters[i + 1].index : text.length;
@@ -150,8 +172,14 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
         .map((s) => s.trim())
         .filter(Boolean);
 
+      let sliceSearchFrom = 0;
       for (const b of blocks) {
-        paras.push({ text: b, chapterIndex: i });
+        const localIdx = slice.indexOf(b, sliceSearchFrom);
+        const contentStart =
+          localIdx >= 0 ? start + localIdx : start + sliceSearchFrom;
+        paras.push({ text: b, chapterIndex: i, contentStart });
+        sliceSearchFrom =
+          localIdx >= 0 ? localIdx + b.length : sliceSearchFrom + b.length;
       }
     }
     return paras;
@@ -442,6 +470,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const stopReading = useCallback(() => {
     isReadingRef.current = false;
     setIsReading(false);
+    setReadingIndex(null);
     try {
       if (currentUtteranceRef.current) {
         currentUtteranceRef.current.onend = null;
@@ -449,6 +478,44 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       window.speechSynthesis.cancel();
     } catch { }
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedKeyword(searchInput.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    if (!debouncedKeyword || !book) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchResults(buildTextSearchResults(book.content, debouncedKeyword));
+  }, [debouncedKeyword, book?.content]);
+
+  const openSearchPage = useCallback(() => {
+    stopReading();
+    setShowSearchPage(true);
+  }, [stopReading]);
+
+  const closeSearchPage = useCallback(() => {
+    setShowSearchPage(false);
+  }, []);
+
+  const handleSelectSearchResult = useCallback(
+    (index: number) => {
+      const result = searchResults[index];
+      if (!result || !containerRef.current) return;
+      stopReading();
+      const paraIdx = findParagraphIndex(paragraphs, result.offset);
+      const top = paraOffsets[paraIdx] ?? 0;
+      containerRef.current.scrollTop = top;
+      setScrollTop(top);
+      setShowSearchPage(false);
+    },
+    [searchResults, paragraphs, paraOffsets, stopReading],
+  );
 
   return (
     <div
@@ -469,7 +536,26 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       <NavBar
         onBack={onClose}
         className={`reader-header ${showUI ? "open" : "close"}`}
-        backArrow={<span style={{ color: "#fff" }}>←</span>}
+        backArrow={
+          <span className="reader-header__nav-action" aria-hidden="true">
+            ←
+          </span>
+        }
+        right={
+          !showSearchPage ? (
+            <button
+              type="button"
+              className="reader-header__nav-action"
+              aria-label="搜尋"
+              onClick={(e) => {
+                e.stopPropagation();
+                openSearchPage();
+              }}
+            >
+              <FiSearch />
+            </button>
+          ) : null
+        }
       >
         閱讀
       </NavBar>
@@ -483,6 +569,17 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
           setShowMenu(false);
         }}
         currentChapterIndex={currentChapterIndex}
+      />
+
+      <ReaderSearchPage
+        visible={showSearchPage}
+        keyword={searchInput}
+        onKeywordChange={setSearchInput}
+        results={searchResults}
+        bgColor={bgColor}
+        textColor={textColor}
+        onSelectResult={handleSelectSearchResult}
+        onClose={closeSearchPage}
       />
 
       <div className="reader-current-chapter">{currentChapterTitle}</div>

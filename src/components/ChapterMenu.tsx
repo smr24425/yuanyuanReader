@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { Popup, List } from "antd-mobile";
+import "./ChapterMenu.scss";
 
 export interface Chapter {
   title: string;
@@ -37,7 +38,7 @@ const ChapterMenu: React.FC<ChapterMenuProps> = ({
       visible={visible}
       position="left"
       onMaskClick={onClose}
-      bodyStyle={{ width: "70vw", height: "100vh", overflowY: "auto" }}
+      bodyClassName="chapter-menu-popup"
     >
       <List header="章節選單">
         {chapters.map((ch, i) => (
@@ -52,11 +53,11 @@ const ChapterMenu: React.FC<ChapterMenuProps> = ({
               fontWeight: i === currentChapterIndex ? "bold" : undefined,
             }}
           >
-            {/* 外包一層 div 來加 id */}
             <div id={`ch-menu-${i}`}>{ch.title}</div>
           </List.Item>
         ))}
       </List>
+      <div className="chapter-menu-popup__bottom-spacer" aria-hidden="true" />
     </Popup>
   );
 };

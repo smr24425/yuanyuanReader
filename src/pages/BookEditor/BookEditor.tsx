@@ -3,6 +3,7 @@ import { NavBar, Toast } from "antd-mobile";
 import { CloseOutline, CheckOutline } from "antd-mobile-icons";
 import "./BookEditor.scss";
 import { db } from "../../db/indexedDB";
+import { findAllMatches } from "../../utils/textSearch";
 
 interface BookEditorProps {
   bookId: number;
@@ -44,12 +45,7 @@ const BookEditor: React.FC<BookEditorProps> = ({ bookId, onClose }) => {
       setCurrentIndex(-1);
       return;
     }
-    const indices: number[] = [];
-    let pos = content.indexOf(searchKeyword);
-    while (pos !== -1) {
-      indices.push(pos);
-      pos = content.indexOf(searchKeyword, pos + searchKeyword.length);
-    }
+    const indices = findAllMatches(content, searchKeyword);
     setSearchIndices(indices);
     setCurrentIndex(indices.length > 0 ? 0 : -1);
   }, [searchKeyword, content]);
