@@ -1,4 +1,15 @@
 // utils/txtParser.ts
+
+/** 第X章 / 第X回，或 EP.1、EP.2 等集數標記 */
+export const CHAPTER_LINE_PATTERNS = [
+  /第.{1,9}[章回]/,
+  /^\s*EP\.\d+/i,
+] as const;
+
+export function isChapterLine(line: string): boolean {
+  return CHAPTER_LINE_PATTERNS.some((re) => re.test(line));
+}
+
 export const parseChapters = (content: string) => {
   // 統一行尾：支援 \r\n / \n
   const lines = content.split("\n"); // 保留每行內容（可能含 \r）
@@ -14,11 +25,10 @@ export const parseChapters = (content: string) => {
   }
 
   const chapters = [];
-  const re = /第.{1,9}[章回]/; // 你的原本規則
 
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
-    if (re.test(raw)) {
+    if (isChapterLine(raw)) {
       const title = raw.trim();
       const index = offsets[i]; // ← 這裡是「字元位移」
       chapters.push({ title, index });

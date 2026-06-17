@@ -26,17 +26,13 @@ import {
   findParagraphIndex,
   type TextSearchResult,
 } from "../../utils/textSearch";
+import { parseParagraphs } from "../../utils/parseParagraphs";
 import { FiHeadphones, FiSearch } from "react-icons/fi";
 import { BsStopCircle } from "react-icons/bs";
 
 interface Chapter {
   title: string;
   index: number;
-}
-interface Paragraph {
-  text: string;
-  chapterIndex: number | null;
-  contentStart: number;
 }
 interface Book {
   id: number;
@@ -139,50 +135,8 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   }, [bookId]);
 
   const paragraphs = useMemo(() => {
-    if (!book) return [] as Paragraph[];
-
-    const text = book.content;
-    const chapters = (book.chapters ?? [])
-      .slice()
-      .sort((a, b) => a.index - b.index);
-
-    if (chapters.length === 0) {
-      const paras: Paragraph[] = [];
-      let searchFrom = 0;
-      for (const block of text.split(/\n\s*\n+/g)) {
-        const trimmed = block.trim();
-        if (!trimmed) continue;
-        const idx = text.indexOf(trimmed, searchFrom);
-        const contentStart = idx >= 0 ? idx : searchFrom;
-        paras.push({ text: trimmed, chapterIndex: null, contentStart });
-        searchFrom = idx >= 0 ? idx + trimmed.length : searchFrom + trimmed.length;
-      }
-      return paras;
-    }
-
-    const paras: Paragraph[] = [];
-    for (let i = 0; i < chapters.length; i++) {
-      const start = chapters[i].index;
-      const end = i + 1 < chapters.length ? chapters[i + 1].index : text.length;
-      const slice = text.slice(start, end);
-
-      const blocks = slice
-        .split(/\n\s*\n+/g)
-        .flatMap((sec) => sec.split(/\n+/g))
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      let sliceSearchFrom = 0;
-      for (const b of blocks) {
-        const localIdx = slice.indexOf(b, sliceSearchFrom);
-        const contentStart =
-          localIdx >= 0 ? start + localIdx : start + sliceSearchFrom;
-        paras.push({ text: b, chapterIndex: i, contentStart });
-        sliceSearchFrom =
-          localIdx >= 0 ? localIdx + b.length : sliceSearchFrom + b.length;
-      }
-    }
-    return paras;
+    if (!book) return [];
+    return parseParagraphs(book.content, book.chapters ?? []);
   }, [book]);
 
   useEffect(() => {
