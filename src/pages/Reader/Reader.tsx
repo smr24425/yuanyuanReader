@@ -540,6 +540,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
 
       <div
         ref={containerRef}
+        className="reader-scroll-container"
         onScroll={handleScroll}
         style={{
           flex: 1,

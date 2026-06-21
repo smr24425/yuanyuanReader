@@ -121,6 +121,10 @@
   }
 }
 
+.reader-scroll-container {
+  overflow-x: hidden;
+}
+
 .reader-current-chapter {
   padding: 8px;
   white-space: nowrap;
@@ -256,6 +260,11 @@
 }
 
 .reader-para {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
+
   &.reading {
     color: #6658ca;
     background-color: #f3f1ff;

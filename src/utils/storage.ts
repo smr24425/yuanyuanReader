@@ -1,3 +1,5 @@
+import type { CustomChapterRule } from "./chapterRuleCompiler";
+
 const STORAGE_KEYS = {
   readerFontSize: "reader.fontSize",
   readerBgColor: "reader.bgColor",
@@ -6,7 +8,11 @@ const STORAGE_KEYS = {
   isBiometricEnabled: "isBiometricEnabled",
   passcode: "appPasscode",
   lockTabSwipe: "lockTabSwipe",
+  customChapterRules: "reader.customChapterRules",
 } as const;
+
+export const MAX_CUSTOM_CHAPTER_RULES = 20;
+export const MAX_CHAPTER_RULE_PREFIX_LENGTH = 30;
 
 export const DEFAULT_FONT_SIZE = 14;
 export const MIN_FONT_SIZE = 10;
@@ -140,4 +146,65 @@ export const getTabSwipeLocked = (): boolean => {
 export const setTabSwipeLocked = (locked: boolean): void => {
   safeSetItem(STORAGE_KEYS.lockTabSwipe, String(locked));
 };
+
+// --- 章節切分規則 ---
+
+function isValidChapterRuleType(
+  value: unknown,
+): value is CustomChapterRule["type"] {
+  return (
+    value === "prefix-digits" ||
+    value === "prefix-dot-digits" ||
+    value === "line-starts-with"
+  );
+}
+
+function normalizeCustomChapterRule(raw: unknown): CustomChapterRule | null {
+  if (!raw || typeof raw !== "object") return null;
+  const item = raw as Record<string, unknown>;
+  if (typeof item.id !== "string" || !item.id) return null;
+  if (!isValidChapterRuleType(item.type)) return null;
+  if (typeof item.prefix !== "string") return null;
+
+  const prefix = item.prefix.trim();
+  if (!prefix || prefix.length > MAX_CHAPTER_RULE_PREFIX_LENGTH) return null;
+
+  return { id: item.id, type: item.type, prefix };
+}
+
+export function getCustomChapterRules(): CustomChapterRule[] {
+  const raw = safeGetItem(STORAGE_KEYS.customChapterRules);
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(normalizeCustomChapterRule)
+      .filter((rule): rule is CustomChapterRule => rule !== null)
+      .slice(0, MAX_CUSTOM_CHAPTER_RULES);
+  } catch {
+    return [];
+  }
+}
+
+export function setCustomChapterRules(rules: CustomChapterRule[]): void {
+  const normalized = rules
+    .map(normalizeCustomChapterRule)
+    .filter((rule): rule is CustomChapterRule => rule !== null)
+    .slice(0, MAX_CUSTOM_CHAPTER_RULES);
+  safeSetItem(
+    STORAGE_KEYS.customChapterRules,
+    JSON.stringify(normalized),
+  );
+}
+
+export function validateNewChapterRulePrefix(prefix: string): string | null {
+  const trimmed = prefix.trim();
+  if (!trimmed) return "請輸入關鍵字";
+  if (trimmed.length > MAX_CHAPTER_RULE_PREFIX_LENGTH) {
+    return `關鍵字不可超過 ${MAX_CHAPTER_RULE_PREFIX_LENGTH} 字`;
+  }
+  return null;
+}
 

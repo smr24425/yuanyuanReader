@@ -29,9 +29,10 @@ import BookEditor from "../BookEditor/BookEditor";
 import { FiEdit, FiTrash2, FiShare2 } from "react-icons/fi";
 import { downloadTxT } from "../../utils/common";
 import PasscodeSetting from "./Setting/PasscodeSetting";
+import ChapterRulesSetting from "./Setting/ChapterRulesSetting";
 import CheckVersion from "./Setting/CheckVersion";
 import Footer from "../../components/Footer";
-import { getTabSwipeLocked } from "../../utils/storage";
+import { getCustomChapterRules, getTabSwipeLocked } from "../../utils/storage";
 
 const LONG_PRESS_MS = 500;
 
@@ -168,7 +169,7 @@ const BookList: React.FC = () => {
       } else {
         const text = await readFileWithEncodingFallback(file);
         const title = file.name.replace(/\.txt$/i, "");
-        const chapters = parseChapters(text);
+        const chapters = parseChapters(text, getCustomChapterRules());
 
         const bookId = await db.books.add({
           title,
@@ -700,6 +701,8 @@ const BookList: React.FC = () => {
         </List>
 
         <PasscodeSetting />
+
+        <ChapterRulesSetting />
 
         <List>
           <List.Item extra={`v${__APP_VERSION__}`}>

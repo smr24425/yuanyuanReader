@@ -8,10 +8,12 @@ describe("isChapterLine", () => {
     expect(isChapterLine("第一百二十回 尾聲")).toBe(true);
   });
 
-  it("matches EP.N episode markers", () => {
+  it("matches EP.N and EP zero-padded episode markers", () => {
     expect(isChapterLine("EP.1 序章")).toBe(true);
     expect(isChapterLine("EP.2")).toBe(true);
     expect(isChapterLine("  ep.10 標題")).toBe(true);
+    expect(isChapterLine("EP0001 序章")).toBe(true);
+    expect(isChapterLine("ep1 開始")).toBe(true);
   });
 
   it("does not match ordinary lines", () => {
@@ -21,6 +23,15 @@ describe("isChapterLine", () => {
 });
 
 describe("parseChapters", () => {
+  it("detects EP0001 chapter markers", () => {
+    const content = "EP0001 序章\n\n正文一。\n\nEP0002 第二章\n\n正文二。";
+    const chapters = parseChapters(content);
+
+    expect(chapters).toHaveLength(2);
+    expect(chapters[0].title).toBe("EP0001 序章");
+    expect(chapters[1].title).toBe("EP0002 第二章");
+  });
+
   it("detects EP.1 / EP.2 chapter markers", () => {
     const content = "EP.1 序章\n\n正文一。\n\nEP.2 外傳\n\n正文二。";
     const chapters = parseChapters(content);
