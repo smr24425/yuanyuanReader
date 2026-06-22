@@ -683,6 +683,7 @@ const BookList: React.FC = () => {
           設定
         </NavBar>
 
+        <div className="setting-popup__scroll">
         <List>
           <CheckVersion />
           <List.Item
@@ -709,6 +710,7 @@ const BookList: React.FC = () => {
             當前版本
           </List.Item>
         </List>
+        </div>
       </Popup>
     </div>
   );

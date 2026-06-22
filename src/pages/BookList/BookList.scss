@@ -246,6 +246,17 @@
 }
 
 .setting-popup {
+  .adm-popup-body {
+    overflow: hidden;
+  }
+
+  &__scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .adm-list {
     padding: 16px;
 

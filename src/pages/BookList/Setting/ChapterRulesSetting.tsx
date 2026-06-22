@@ -9,7 +9,6 @@ import {
   Popup,
   Space,
 } from "antd-mobile";
-import { UnorderedListOutline } from "antd-mobile-icons";
 import {
   BUILTIN_CHAPTER_RULE_DESCRIPTIONS,
   CHAPTER_RULE_TYPE_OPTIONS,
@@ -59,6 +58,11 @@ const ChapterRulesSetting: React.FC = () => {
     setPrefix("");
   };
 
+  const closeAddForm = () => {
+    setAddVisible(false);
+    resetAddForm();
+  };
+
   const handleAddRule = () => {
     const error = validateNewChapterRulePrefix(prefix);
     if (error) {
@@ -80,8 +84,7 @@ const ChapterRulesSetting: React.FC = () => {
     };
     persistRules([...rules, nextRule]);
     Toast.show({ content: "規則已新增", icon: "success" });
-    setAddVisible(false);
-    resetAddForm();
+    closeAddForm();
   };
 
   const handleDeleteRule = async (rule: CustomChapterRule) => {
@@ -96,105 +99,111 @@ const ChapterRulesSetting: React.FC = () => {
   };
 
   return (
-    <div className="chapter-rules-setting">
+    <>
       <List header="章節切分規則">
-        <List.Item prefix={<UnorderedListOutline />}>
-          <div className="chapter-rules-setting__notice">
-            新規則僅套用至<strong>之後上傳</strong>的 TXT；已存在的書請重新上傳。
-          </div>
+        <List.Item description="新規則僅套用至之後上傳的 TXT；已存在的書請重新上傳。">
+          使用說明
         </List.Item>
-      </List>
 
-      <List header="內建規則（自動套用）">
-        {BUILTIN_CHAPTER_RULE_DESCRIPTIONS.map((desc) => (
-          <List.Item key={desc}>{desc}</List.Item>
-        ))}
-      </List>
+        <List.Item
+          description={
+            <div className="chapter-rules-setting__builtin-list">
+              {BUILTIN_CHAPTER_RULE_DESCRIPTIONS.map((desc) => (
+                <div key={desc}>{desc}</div>
+              ))}
+            </div>
+          }
+        >
+          內建規則
+        </List.Item>
 
-      <List
-        header={`我的規則（${rules.length}/${MAX_CUSTOM_CHAPTER_RULES}）`}
-      >
-        {rules.length === 0 ? (
-          <List.Item>尚未新增自訂規則</List.Item>
-        ) : (
-          rules.map((rule) => (
-            <List.Item
-              key={rule.id}
-              description={formatRulePreview(rule)}
-              extra={
-                <Button
-                  size="mini"
-                  color="danger"
-                  fill="outline"
+        <List.Item
+          description={`已新增 ${rules.length} / ${MAX_CUSTOM_CHAPTER_RULES} 條`}
+        >
+          我的規則
+        </List.Item>
+
+        {rules.map((rule) => (
+          <List.Item
+            key={rule.id}
+            className="chapter-rules-setting__rule-item"
+            description={
+              <div className="chapter-rules-setting__rule-meta">
+                <span className="chapter-rules-setting__rule-preview">
+                  {formatRulePreview(rule)}
+                </span>
+                <button
+                  type="button"
+                  className="chapter-rules-setting__delete-btn"
                   onClick={() => void handleDeleteRule(rule)}
                 >
                   刪除
-                </Button>
-              }
-            >
-              {getRuleSummary(rule)}
-            </List.Item>
-          ))
-        )}
-      </List>
+                </button>
+              </div>
+            }
+          >
+            {getRuleSummary(rule)}
+          </List.Item>
+        ))}
 
-      <div className="chapter-rules-setting__actions">
-        <Button
-          block
-          color="primary"
-          onClick={() => setAddVisible(true)}
+        <List.Item
+          clickable
+          arrow
           disabled={rules.length >= MAX_CUSTOM_CHAPTER_RULES}
+          onClick={() => setAddVisible(true)}
         >
           新增章節切分規則
-        </Button>
-      </div>
+        </List.Item>
+      </List>
 
       <Popup
         visible={addVisible}
-        onMaskClick={() => {
-          setAddVisible(false);
-          resetAddForm();
-        }}
+        onMaskClick={closeAddForm}
+        position="bottom"
+        className="chapter-rules-setting__add-popup"
         bodyStyle={{
           borderTopLeftRadius: 12,
           borderTopRightRadius: 12,
-          padding: 16,
         }}
       >
         <div className="chapter-rules-setting__form">
-          <h3>新增章節切分規則</h3>
+          <div className="chapter-rules-setting__form-title">新增章節切分規則</div>
 
           <List>
             <List.Item
               onClick={() => setPickerVisible(true)}
               clickable
-              extra={selectedTypeLabel}
+              arrow
+              extra={
+                <span className="chapter-rules-setting__type-value">
+                  {selectedTypeLabel}
+                </span>
+              }
             >
               規則類型
             </List.Item>
-            <List.Item>
-              <Input
-                placeholder="請輸入關鍵字，例如 EP、Episode、序章"
-                value={prefix}
-                onChange={setPrefix}
-                clearable
-              />
-            </List.Item>
           </List>
+
+          <div className="chapter-rules-setting__input-wrap">
+            <Input
+              placeholder="請輸入關鍵字，例如 EP、Episode、序章"
+              value={prefix}
+              onChange={setPrefix}
+              clearable
+            />
+          </div>
 
           <div className="chapter-rules-setting__preview">{previewText}</div>
 
-          <Space block direction="vertical" style={{ "--gap": "12px" }}>
+          <Space
+            block
+            direction="vertical"
+            className="chapter-rules-setting__form-actions"
+          >
             <Button block color="primary" onClick={handleAddRule}>
               儲存
             </Button>
-            <Button
-              block
-              onClick={() => {
-                setAddVisible(false);
-                resetAddForm();
-              }}
-            >
+            <Button block onClick={closeAddForm}>
               取消
             </Button>
           </Space>
@@ -213,7 +222,7 @@ const ChapterRulesSetting: React.FC = () => {
           if (matched) setRuleType(matched.value);
         }}
       />
-    </div>
+    </>
   );
 };
 
