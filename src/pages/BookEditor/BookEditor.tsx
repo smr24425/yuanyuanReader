@@ -4,6 +4,8 @@ import { CloseOutline, CheckOutline } from "antd-mobile-icons";
 import "./BookEditor.scss";
 import { db } from "../../db/indexedDB";
 import { findAllMatches } from "../../utils/textSearch";
+import { getCustomChapterRules } from "../../utils/storage";
+import { parseChapters } from "../../utils/txtParser";
 
 interface BookEditorProps {
   bookId: number;
@@ -33,7 +35,8 @@ const BookEditor: React.FC<BookEditorProps> = ({ bookId, onClose }) => {
 
   // 儲存按鈕
   const handleSave = async () => {
-    await db.books.update(bookId, { title, updatedAt: Date.now() });
+    const chapters = parseChapters(content, getCustomChapterRules());
+    await db.books.update(bookId, { title, updatedAt: Date.now(), chapters });
     await db.bookContents.update(bookId, { content });
     Toast.show({ content: "保存成功", icon: "success" });
   };
