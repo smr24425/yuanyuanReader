@@ -1,7 +1,8 @@
 export type ChapterRuleType =
   | "prefix-digits"
   | "prefix-dot-digits"
-  | "line-starts-with";
+  | "line-starts-with"
+  | "digits-suffix"; // 新增類型
 
 export interface CustomChapterRule {
   id: string;
@@ -13,6 +14,7 @@ export const CHAPTER_RULE_TYPE_LABELS: Record<ChapterRuleType, string> = {
   "prefix-digits": "行首關鍵字 + 數字",
   "prefix-dot-digits": "行首關鍵字 + . + 數字",
   "line-starts-with": "行首固定文字",
+  "digits-suffix": "數字 + 後綴文字（如：001章）",
 };
 
 export const CHAPTER_RULE_TYPE_OPTIONS: {
@@ -28,6 +30,7 @@ export const CHAPTER_RULE_TYPE_OPTIONS: {
     value: "line-starts-with",
     label: CHAPTER_RULE_TYPE_LABELS["line-starts-with"],
   },
+  { value: "digits-suffix", label: CHAPTER_RULE_TYPE_LABELS["digits-suffix"] },
 ];
 
 export const BUILTIN_CHAPTER_RULE_DESCRIPTIONS = [
@@ -49,6 +52,9 @@ export function compileChapterRule(rule: CustomChapterRule): RegExp {
       return new RegExp(`^\\s*${prefix}\\.\\d+`, "i");
     case "line-starts-with":
       return new RegExp(`^\\s*${prefix}`, "i");
+    case "digits-suffix":
+      // 匹配數字開頭，後面緊接著指定的後綴文字（例如 prefix 為 "章" 時，匹配 001章、1章）
+      return new RegExp(`^\\s*\\d+${prefix}`, "i");
   }
 }
 
@@ -69,6 +75,8 @@ export function getRulePreviewExamples(rule: CustomChapterRule): string[] {
       return [`${prefix}.1`, `${prefix}.12`];
     case "line-starts-with":
       return [prefix, `${prefix} 標題`];
+    case "digits-suffix":
+      return [`1${prefix}`, `001${prefix}`];
   }
 }
 

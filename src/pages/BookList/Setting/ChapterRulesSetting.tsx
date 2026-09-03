@@ -21,7 +21,7 @@ import {
   getCustomChapterRules,
   MAX_CUSTOM_CHAPTER_RULES,
   setCustomChapterRules,
-  validateNewChapterRulePrefix,
+  validateChapterRule,
 } from "../../../utils/storage";
 import "./ChapterRulesSetting.scss";
 
@@ -64,7 +64,7 @@ const ChapterRulesSetting: React.FC = () => {
   };
 
   const handleAddRule = () => {
-    const error = validateNewChapterRulePrefix(prefix);
+    const error = validateChapterRule(prefix, ruleType);
     if (error) {
       Toast.show({ content: error, icon: "fail" });
       return;
@@ -167,7 +167,9 @@ const ChapterRulesSetting: React.FC = () => {
         }}
       >
         <div className="chapter-rules-setting__form">
-          <div className="chapter-rules-setting__form-title">新增章節切分規則</div>
+          <div className="chapter-rules-setting__form-title">
+            新增章節切分規則
+          </div>
 
           <List>
             <List.Item

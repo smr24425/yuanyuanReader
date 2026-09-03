@@ -1,4 +1,4 @@
-import type { CustomChapterRule } from "./chapterRuleCompiler";
+import type { ChapterRuleType, CustomChapterRule } from "./chapterRuleCompiler";
 
 const STORAGE_KEYS = {
   readerFontSize: "reader.fontSize",
@@ -155,7 +155,8 @@ function isValidChapterRuleType(
   return (
     value === "prefix-digits" ||
     value === "prefix-dot-digits" ||
-    value === "line-starts-with"
+    value === "line-starts-with" ||
+    value === "digits-suffix"
   );
 }
 
@@ -193,18 +194,23 @@ export function setCustomChapterRules(rules: CustomChapterRule[]): void {
     .map(normalizeCustomChapterRule)
     .filter((rule): rule is CustomChapterRule => rule !== null)
     .slice(0, MAX_CUSTOM_CHAPTER_RULES);
-  safeSetItem(
-    STORAGE_KEYS.customChapterRules,
-    JSON.stringify(normalized),
-  );
+  safeSetItem(STORAGE_KEYS.customChapterRules, JSON.stringify(normalized));
 }
 
-export function validateNewChapterRulePrefix(prefix: string): string | null {
+export function validateChapterRule(
+  prefix: string,
+  ruleType: ChapterRuleType,
+): string | null {
   const trimmed = prefix.trim();
   if (!trimmed) return "請輸入關鍵字";
   if (trimmed.length > MAX_CHAPTER_RULE_PREFIX_LENGTH) {
     return `關鍵字不可超過 ${MAX_CHAPTER_RULE_PREFIX_LENGTH} 字`;
   }
+
+  // 根據不同規則類型的特殊驗證
+  if (ruleType === "digits-suffix" && /\d/.test(trimmed)) {
+    return "後綴文字不應包含數字（例如「001章」的後綴應填入「章」）";
+  }
+
   return null;
 }
-
