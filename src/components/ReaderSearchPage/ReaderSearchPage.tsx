@@ -8,6 +8,7 @@ export const SEARCH_RESULTS_PAGE_SIZE = 200;
 
 export interface ReaderSearchResultItem {
   sentence: string;
+  offset: number;
 }
 
 interface ReaderSearchPageProps {
@@ -20,6 +21,7 @@ interface ReaderSearchPageProps {
   textColor: string;
   onSelectResult: (index: number) => void;
   onClose: () => void;
+  totalLength: number;
 }
 
 const ReaderSearchPage: React.FC<ReaderSearchPageProps> = ({
@@ -32,6 +34,7 @@ const ReaderSearchPage: React.FC<ReaderSearchPageProps> = ({
   textColor,
   onSelectResult,
   onClose,
+  totalLength,
 }) => {
   const [visibleCount, setVisibleCount] = useState(SEARCH_RESULTS_PAGE_SIZE);
 
@@ -99,6 +102,11 @@ const ReaderSearchPage: React.FC<ReaderSearchPageProps> = ({
             ? findAllMatches(result.sentence, keywordTrimmed)
             : [];
 
+          const percent = Math.min(
+            100,
+            Math.max(0, Math.round((result.offset / totalLength) * 100)),
+          );
+
           return (
             <button
               key={`${index}-${result.sentence.slice(0, 24)}`}
@@ -117,6 +125,9 @@ const ReaderSearchPage: React.FC<ReaderSearchPageProps> = ({
               ) : (
                 result.sentence
               )}
+
+              <div style={{ flex: 1 }} />
+              <span style={{ fontSize: "12px", opacity: 0.6 }}>{percent}%</span>
             </button>
           );
         })}

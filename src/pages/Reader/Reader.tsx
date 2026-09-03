@@ -286,7 +286,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       void writeProgressNow();
       try {
         window.speechSynthesis?.cancel();
-      } catch { }
+      } catch {}
     };
   }, [writeProgressNow]);
 
@@ -411,7 +411,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
     if (!paragraphs.length) return;
     try {
       window.speechSynthesis.cancel();
-    } catch { }
+    } catch {}
     const startIdx = findParagraphAtScroll(
       containerRef.current?.scrollTop ?? 0,
     );
@@ -430,7 +430,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
         currentUtteranceRef.current.onend = null;
       }
       window.speechSynthesis.cancel();
-    } catch { }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -534,6 +534,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
         textColor={textColor}
         onSelectResult={handleSelectSearchResult}
         onClose={closeSearchPage}
+        totalLength={book?.content?.length || 1}
       />
 
       <div className="reader-current-chapter">{currentChapterTitle}</div>
