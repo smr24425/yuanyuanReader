@@ -46,6 +46,12 @@ interface ReaderProps {
   bookId: number;
   onClose: () => void;
 }
+interface FullscreenVideoElement extends HTMLVideoElement {
+  webkitEnterFullscreen?: () => void;
+  webkitExitFullscreen?: () => void;
+  webkitSupportsFullscreen?: boolean;
+  webkitDisplayingFullscreen?: boolean;
+}
 
 const VIEWPORT_HEIGHT = window.innerHeight - 44;
 const BUFFER = 3;
@@ -62,53 +68,6 @@ function updateThemeColor(color: string) {
   }
   meta.setAttribute("content", color);
 }
-
-const createBackgroundAudio = () => {
-  const sampleRate = 44100;
-  const duration = 10;
-  const numSamples = sampleRate * duration;
-
-  const buffer = new ArrayBuffer(44 + numSamples * 2);
-  const view = new DataView(buffer);
-
-  const writeString = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i));
-    }
-  };
-
-  // WAV header
-  writeString(0, "RIFF");
-  view.setUint32(4, 36 + numSamples * 2, true);
-  writeString(8, "WAVE");
-
-  writeString(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-
-  writeString(36, "data");
-  view.setUint32(40, numSamples * 2, true);
-
-  // 極低音量 1000Hz sine wave
-  const volume = 0.00001;
-  const frequency = 1000;
-
-  for (let i = 0; i < numSamples; i++) {
-    const sample =
-      Math.sin((2 * Math.PI * frequency * i) / sampleRate) * volume;
-
-    view.setInt16(44 + i * 2, sample * 32767, true);
-  }
-
-  return new Blob([buffer], {
-    type: "audio/wav",
-  });
-};
 
 const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const [book, setBook] = useState<Book | null>(null);
@@ -133,19 +92,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const isReadingRef = useRef(false);
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [audioSrc, setAudioSrc] = useState<string>("");
-
-  useEffect(() => {
-    const blob = createBackgroundAudio();
-    const url = URL.createObjectURL(blob);
-
-    setAudioSrc(url);
-
-    return () => {
-      URL.revokeObjectURL(url);
-    };
-  }, []);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const [showSearchPage, setShowSearchPage] = useState(false);
   const [searchInput, setSearchInput] = useState("");
@@ -494,6 +441,99 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
     } catch {}
   }, []);
 
+  const startVideoReading = useCallback(() => {
+    if (!paragraphs.length) return;
+
+    const video = videoRef.current as FullscreenVideoElement | null;
+
+    if (!video) {
+      console.error("找不到 video");
+      return;
+    }
+
+    const startIdx = findParagraphAtScroll(
+      containerRef.current?.scrollTop ?? 0,
+    );
+
+    console.log("🎧 click");
+    console.log("video:", video);
+    console.log("readyState:", video.readyState);
+    console.log("webkitSupportsFullscreen:", video.webkitSupportsFullscreen);
+
+    // 直接操作 DOM，不等待 React render
+    video.style.visibility = "visible";
+
+    isReadingRef.current = true;
+    setIsReading(true);
+    setReadingIndex(startIdx);
+
+    if ("audioSession" in navigator) {
+      try {
+        (navigator as any).audioSession.type = "playback";
+      } catch (error) {
+        console.log("audioSession 設定失敗", error);
+      }
+    }
+
+    // 先開始播放
+    const playPromise = video.play();
+
+    playPromise?.catch((error) => {
+      console.error("video.play() 失敗:", error);
+    });
+
+    // iPhone Safari
+    if (video.webkitEnterFullscreen) {
+      try {
+        video.webkitEnterFullscreen();
+      } catch (error) {
+        console.error("webkitEnterFullscreen 失敗:", error);
+      }
+    }
+    // Desktop / Android
+    else if (video.requestFullscreen) {
+      video.requestFullscreen().catch((error) => {
+        console.error("requestFullscreen 失敗:", error);
+      });
+    }
+
+    // 開始 TTS
+    speakParagraph(startIdx);
+  }, [paragraphs.length, findParagraphAtScroll, speakParagraph]);
+
+  const stopVideoReading = useCallback(() => {
+    isReadingRef.current = false;
+
+    setIsReading(false);
+    setReadingIndex(null);
+
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
+
+    const video = videoRef.current as FullscreenVideoElement | null;
+
+    if (video) {
+      video.pause();
+      video.currentTime = 0;
+      video.style.visibility = "hidden";
+
+      if (video.webkitExitFullscreen) {
+        try {
+          video.webkitExitFullscreen();
+        } catch {}
+      }
+    }
+
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+
+    if ("mediaSession" in navigator) {
+      navigator.mediaSession.playbackState = "none";
+    }
+  }, []);
+
   const goToPreviousReadingChapter = useCallback(() => {
     if (!book?.chapters?.length) return;
 
@@ -551,180 +591,12 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
     speakParagraph(paraIdx);
   }, [book?.chapters?.length, currentChapterIndex, paragraphs, speakParagraph]);
 
-  const setupMediaSession = useCallback(() => {
-    if (!("mediaSession" in navigator)) {
-      console.log("❌ MediaSession 不支援");
-      return;
-    }
-
-    console.log("🎛️ setup MediaSession");
-
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: book?.title ?? "聽書",
-      artist: "聽書",
-      album: "閱讀",
-    });
-
-    try {
-      // navigator.mediaSession.setActionHandler("play", () => {
-      //   console.log("🎛️ MediaSession PLAY");
-
-      //   const audio = audioRef.current;
-
-      //   audio?.play().catch((error) => {
-      //     console.error("MediaSession audio play failed:", error);
-      //   });
-
-      //   try {
-      //     window.speechSynthesis.resume();
-      //   } catch {}
-
-      //   isReadingRef.current = true;
-      //   setIsReading(true);
-      // });
-      navigator.mediaSession.setActionHandler("play", () => {
-        const audio = audioRef.current;
-
-        isReadingRef.current = true;
-        setIsReading(true);
-
-        if (audio) {
-          audio.play().catch(() => {});
-        }
-
-        try {
-          window.speechSynthesis.resume();
-        } catch {}
-
-        // 如果 TTS 已經完全停止，重新從目前段落開始
-        if (
-          readingIndex != null &&
-          window.speechSynthesis.speaking === false &&
-          window.speechSynthesis.pending === false
-        ) {
-          speakParagraph(readingIndex);
-        }
-
-        navigator.mediaSession.playbackState = "playing";
-      });
-    } catch (error) {
-      console.error("MediaSession play handler failed:", error);
-    }
-
-    try {
-      navigator.mediaSession.setActionHandler("pause", () => {
-        console.log("🎛️ MediaSession PAUSE");
-
-        const audio = audioRef.current;
-
-        audio?.pause();
-
-        try {
-          window.speechSynthesis.pause();
-        } catch {}
-
-        setIsReading(false);
-      });
-    } catch (error) {
-      console.error("MediaSession pause handler failed:", error);
-    }
-
-    try {
-      navigator.mediaSession.setActionHandler("previoustrack", () => {
-        console.log("🎛️ MediaSession PREVIOUS");
-        goToPreviousReadingChapter();
-      });
-    } catch (error) {
-      console.error("MediaSession previous handler failed:", error);
-    }
-
-    try {
-      navigator.mediaSession.setActionHandler("nexttrack", () => {
-        console.log("🎛️ MediaSession NEXT");
-        goToNextReadingChapter();
-      });
-    } catch (error) {
-      console.error("MediaSession next handler failed:", error);
-    }
-
-    navigator.mediaSession.playbackState = "playing";
-  }, [book?.title, goToPreviousReadingChapter, goToNextReadingChapter]);
-
-  const startAudioReading = useCallback(() => {
-    if (!paragraphs.length) return;
-
-    const audio = audioRef.current;
-
-    if (!audio) {
-      console.error("找不到 audio");
-      return;
-    }
-
-    const startIdx = findParagraphAtScroll(
-      containerRef.current?.scrollTop ?? 0,
-    );
-
-    isReadingRef.current = true;
-    setIsReading(true);
-    setReadingIndex(startIdx);
-
-    // 先建立 MediaSession
-    setupMediaSession();
-
-    // Audio Session
-    if ("audioSession" in navigator) {
-      try {
-        (navigator as any).audioSession.type = "playback";
-      } catch (error) {
-        console.log("audioSession 設定失敗", error);
-      }
-    }
-
-    // 播放背景音訊
-    audio
-      .play()
-      .then(() => {
-        if ("mediaSession" in navigator) {
-          navigator.mediaSession.playbackState = "playing";
-        }
-      })
-      .catch(() => {});
-
-    // 開始 TTS
-    speakParagraph(startIdx);
-  }, [
-    paragraphs.length,
-    findParagraphAtScroll,
-    speakParagraph,
-    setupMediaSession,
-  ]);
-
-  const stopAudioReading = useCallback(() => {
-    isReadingRef.current = false;
-    setIsReading(false);
-    setReadingIndex(null);
-
-    try {
-      window.speechSynthesis.cancel();
-    } catch {}
-
-    const audio = audioRef.current;
-
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-
-    if ("mediaSession" in navigator) {
-      navigator.mediaSession.playbackState = "none";
-    }
-  }, []);
-
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
     if (!book || readingIndex == null) return;
 
     const chapterIndex = paragraphs[readingIndex]?.chapterIndex ?? 0;
+
     const chapterTitle = book.chapters?.[chapterIndex]?.title ?? "閱讀";
 
     navigator.mediaSession.metadata = new MediaMetadata({
@@ -735,9 +607,9 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
 
     try {
       navigator.mediaSession.setActionHandler("play", () => {
-        const audio = audioRef.current;
+        const video = videoRef.current;
 
-        audio?.play().catch(() => {});
+        video?.play().catch(() => {});
 
         try {
           window.speechSynthesis.resume();
@@ -750,9 +622,9 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
 
     try {
       navigator.mediaSession.setActionHandler("pause", () => {
-        const audio = audioRef.current;
+        const video = videoRef.current;
 
-        audio?.pause();
+        video?.pause();
 
         try {
           window.speechSynthesis.pause();
@@ -785,22 +657,48 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   ]);
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const video = videoRef.current as FullscreenVideoElement | null;
 
-    const handleTimeUpdate = () => {
-      if (!isReadingRef.current) return;
-      if (!audio.duration) return;
+    if (!video) return;
 
-      if (audio.currentTime >= audio.duration - 0.15) {
-        audio.currentTime = 0;
+    const handleWebkitFullscreenChange = () => {
+      if (
+        video.webkitSupportsFullscreen &&
+        !video.webkitDisplayingFullscreen &&
+        isReadingRef.current
+      ) {
+        stopVideoReading();
       }
     };
 
-    audio.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("webkitendfullscreen", handleWebkitFullscreenChange);
 
     return () => {
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener(
+        "webkitendfullscreen",
+        handleWebkitFullscreenChange,
+      );
+    };
+  }, [stopVideoReading]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      if (!isReadingRef.current) return;
+      if (!video.duration) return;
+
+      // 還剩 0.15 秒時就重播
+      if (video.currentTime >= video.duration - 0.15) {
+        video.currentTime = 0;
+      }
+    };
+
+    video.addEventListener("timeupdate", handleTimeUpdate);
+
+    return () => {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
     };
   }, []);
 
@@ -1061,7 +959,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
             <div
               className="reader-tts-btn"
               onClick={() => {
-                startAudioReading();
+                startVideoReading();
               }}
             >
               <FiHeadphones />
@@ -1070,7 +968,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
             <div
               className="reader-tts-btn"
               onClick={() => {
-                stopAudioReading();
+                stopReading();
               }}
             >
               <BsStopCircle />
@@ -1078,7 +976,48 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
           )}
         </div>
       )}
-      <audio ref={audioRef} src={audioSrc} preload="auto" playsInline loop />
+
+      <video
+        ref={videoRef}
+        src="/yuanyuanReader/black_10s.mp4"
+        // muted
+        controls
+        playsInline
+        preload="auto"
+        onLoadedMetadata={() => {
+          console.log("video metadata loaded");
+        }}
+        onPlay={() => {
+          if (!isReadingRef.current) return;
+
+          window.speechSynthesis.resume();
+          setIsReading(true);
+
+          if ("mediaSession" in navigator) {
+            navigator.mediaSession.playbackState = "playing";
+          }
+        }}
+        onPause={() => {
+          if (!isReadingRef.current) return;
+
+          window.speechSynthesis.pause();
+          setIsReading(false);
+
+          if ("mediaSession" in navigator) {
+            navigator.mediaSession.playbackState = "paused";
+          }
+        }}
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          width: "100%",
+          height: "100%",
+          background: "#000",
+          zIndex: 99999,
+          visibility: "hidden",
+        }}
+      />
     </div>
   );
 };
