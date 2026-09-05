@@ -46,12 +46,6 @@ interface ReaderProps {
   bookId: number;
   onClose: () => void;
 }
-interface FullscreenVideoElement extends HTMLVideoElement {
-  webkitEnterFullscreen?: () => void;
-  webkitExitFullscreen?: () => void;
-  webkitSupportsFullscreen?: boolean;
-  webkitDisplayingFullscreen?: boolean;
-}
 
 const VIEWPORT_HEIGHT = window.innerHeight - 44;
 const BUFFER = 3;
@@ -91,8 +85,6 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const [readingIndex, setReadingIndex] = useState<number | null>(null);
   const isReadingRef = useRef(false);
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   const [showSearchPage, setShowSearchPage] = useState(false);
   const [searchInput, setSearchInput] = useState("");
@@ -441,267 +433,6 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
     } catch {}
   }, []);
 
-  const startVideoReading = useCallback(() => {
-    if (!paragraphs.length) return;
-
-    const video = videoRef.current as FullscreenVideoElement | null;
-
-    if (!video) {
-      console.error("找不到 video");
-      return;
-    }
-
-    const startIdx = findParagraphAtScroll(
-      containerRef.current?.scrollTop ?? 0,
-    );
-
-    console.log("🎧 click");
-    console.log("video:", video);
-    console.log("readyState:", video.readyState);
-    console.log("webkitSupportsFullscreen:", video.webkitSupportsFullscreen);
-
-    // 直接操作 DOM，不等待 React render
-    video.style.visibility = "visible";
-
-    isReadingRef.current = true;
-    setIsReading(true);
-    setReadingIndex(startIdx);
-
-    if ("audioSession" in navigator) {
-      try {
-        (navigator as any).audioSession.type = "playback";
-      } catch (error) {
-        console.log("audioSession 設定失敗", error);
-      }
-    }
-
-    // 先開始播放
-    const playPromise = video.play();
-
-    playPromise?.catch((error) => {
-      console.error("video.play() 失敗:", error);
-    });
-
-    // iPhone Safari
-    if (video.webkitEnterFullscreen) {
-      try {
-        video.webkitEnterFullscreen();
-      } catch (error) {
-        console.error("webkitEnterFullscreen 失敗:", error);
-      }
-    }
-    // Desktop / Android
-    else if (video.requestFullscreen) {
-      video.requestFullscreen().catch((error) => {
-        console.error("requestFullscreen 失敗:", error);
-      });
-    }
-
-    // 開始 TTS
-    speakParagraph(startIdx);
-  }, [paragraphs.length, findParagraphAtScroll, speakParagraph]);
-
-  const stopVideoReading = useCallback(() => {
-    isReadingRef.current = false;
-
-    setIsReading(false);
-    setReadingIndex(null);
-
-    try {
-      window.speechSynthesis.cancel();
-    } catch {}
-
-    const video = videoRef.current as FullscreenVideoElement | null;
-
-    if (video) {
-      video.pause();
-      video.currentTime = 0;
-      video.style.visibility = "hidden";
-
-      if (video.webkitExitFullscreen) {
-        try {
-          video.webkitExitFullscreen();
-        } catch {}
-      }
-    }
-
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    }
-
-    if ("mediaSession" in navigator) {
-      navigator.mediaSession.playbackState = "none";
-    }
-  }, []);
-
-  const goToPreviousReadingChapter = useCallback(() => {
-    if (!book?.chapters?.length) return;
-
-    // 先立刻停止目前這一章的 TTS
-    isReadingRef.current = false;
-
-    try {
-      window.speechSynthesis.cancel();
-    } catch {}
-
-    // 使用原本的上一章功能
-    goToPrevChapter();
-
-    const prevChapter = Math.max(0, currentChapterIndex - 1);
-
-    const paraIdx = paragraphs.findIndex((p) => p.chapterIndex === prevChapter);
-
-    if (paraIdx < 0) return;
-
-    // 開始新的章節朗讀
-    isReadingRef.current = true;
-    setIsReading(true);
-    setReadingIndex(paraIdx);
-
-    speakParagraph(paraIdx);
-  }, [book?.chapters?.length, currentChapterIndex, paragraphs, speakParagraph]);
-
-  const goToNextReadingChapter = useCallback(() => {
-    if (!book?.chapters?.length) return;
-
-    // 先立刻停止目前這一章的 TTS
-    isReadingRef.current = false;
-
-    try {
-      window.speechSynthesis.cancel();
-    } catch {}
-
-    // 使用原本的下一章功能
-    goToNextChapter();
-
-    const nextChapter = Math.min(
-      book.chapters.length - 1,
-      currentChapterIndex + 1,
-    );
-
-    const paraIdx = paragraphs.findIndex((p) => p.chapterIndex === nextChapter);
-
-    if (paraIdx < 0) return;
-
-    // 開始新的章節朗讀
-    isReadingRef.current = true;
-    setIsReading(true);
-    setReadingIndex(paraIdx);
-
-    speakParagraph(paraIdx);
-  }, [book?.chapters?.length, currentChapterIndex, paragraphs, speakParagraph]);
-
-  useEffect(() => {
-    if (!("mediaSession" in navigator)) return;
-    if (!book || readingIndex == null) return;
-
-    const chapterIndex = paragraphs[readingIndex]?.chapterIndex ?? 0;
-
-    const chapterTitle = book.chapters?.[chapterIndex]?.title ?? "閱讀";
-
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: chapterTitle,
-      artist: book.title,
-      album: "聽書",
-    });
-
-    try {
-      navigator.mediaSession.setActionHandler("play", () => {
-        const video = videoRef.current;
-
-        video?.play().catch(() => {});
-
-        try {
-          window.speechSynthesis.resume();
-        } catch {}
-
-        isReadingRef.current = true;
-        setIsReading(true);
-      });
-    } catch {}
-
-    try {
-      navigator.mediaSession.setActionHandler("pause", () => {
-        const video = videoRef.current;
-
-        video?.pause();
-
-        try {
-          window.speechSynthesis.pause();
-        } catch {}
-
-        setIsReading(false);
-      });
-    } catch {}
-
-    try {
-      navigator.mediaSession.setActionHandler("previoustrack", () => {
-        goToPreviousReadingChapter();
-      });
-    } catch {}
-
-    try {
-      navigator.mediaSession.setActionHandler("nexttrack", () => {
-        goToNextReadingChapter();
-      });
-    } catch {}
-
-    navigator.mediaSession.playbackState = isReading ? "playing" : "paused";
-  }, [
-    book,
-    paragraphs,
-    readingIndex,
-    isReading,
-    goToPreviousReadingChapter,
-    goToNextReadingChapter,
-  ]);
-
-  useEffect(() => {
-    const video = videoRef.current as FullscreenVideoElement | null;
-
-    if (!video) return;
-
-    const handleWebkitFullscreenChange = () => {
-      if (
-        video.webkitSupportsFullscreen &&
-        !video.webkitDisplayingFullscreen &&
-        isReadingRef.current
-      ) {
-        stopVideoReading();
-      }
-    };
-
-    video.addEventListener("webkitendfullscreen", handleWebkitFullscreenChange);
-
-    return () => {
-      video.removeEventListener(
-        "webkitendfullscreen",
-        handleWebkitFullscreenChange,
-      );
-    };
-  }, [stopVideoReading]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleTimeUpdate = () => {
-      if (!isReadingRef.current) return;
-      if (!video.duration) return;
-
-      // 還剩 0.15 秒時就重播
-      if (video.currentTime >= video.duration - 0.15) {
-        video.currentTime = 0;
-      }
-    };
-
-    video.addEventListener("timeupdate", handleTimeUpdate);
-
-    return () => {
-      video.removeEventListener("timeupdate", handleTimeUpdate);
-    };
-  }, []);
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedKeyword(searchInput.trim());
@@ -959,7 +690,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
             <div
               className="reader-tts-btn"
               onClick={() => {
-                startVideoReading();
+                startReadingFromScreenTop();
               }}
             >
               <FiHeadphones />
@@ -976,48 +707,6 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
           )}
         </div>
       )}
-
-      <video
-        ref={videoRef}
-        src="/yuanyuanReader/black_10s.mp4"
-        // muted
-        controls
-        playsInline
-        preload="auto"
-        onLoadedMetadata={() => {
-          console.log("video metadata loaded");
-        }}
-        onPlay={() => {
-          if (!isReadingRef.current) return;
-
-          window.speechSynthesis.resume();
-          setIsReading(true);
-
-          if ("mediaSession" in navigator) {
-            navigator.mediaSession.playbackState = "playing";
-          }
-        }}
-        onPause={() => {
-          if (!isReadingRef.current) return;
-
-          window.speechSynthesis.pause();
-          setIsReading(false);
-
-          if ("mediaSession" in navigator) {
-            navigator.mediaSession.playbackState = "paused";
-          }
-        }}
-        style={{
-          position: "fixed",
-          left: 0,
-          top: 0,
-          width: "100%",
-          height: "100%",
-          background: "#000",
-          zIndex: 99999,
-          visibility: "hidden",
-        }}
-      />
     </div>
   );
 };
