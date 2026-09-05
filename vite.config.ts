@@ -21,6 +21,9 @@ export default defineConfig({
       },
       injectRegister: null,
       registerType: "prompt",
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest,mp4}"],
+      },
     }),
   ],
   define: {
