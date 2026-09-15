@@ -63,53 +63,6 @@ function updateThemeColor(color: string) {
   meta.setAttribute("content", color);
 }
 
-const createBackgroundAudio = () => {
-  const sampleRate = 44100;
-  const duration = 10;
-  const numSamples = sampleRate * duration;
-
-  const buffer = new ArrayBuffer(44 + numSamples * 2);
-  const view = new DataView(buffer);
-
-  const writeString = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i));
-    }
-  };
-
-  // WAV header
-  writeString(0, "RIFF");
-  view.setUint32(4, 36 + numSamples * 2, true);
-  writeString(8, "WAVE");
-
-  writeString(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-
-  writeString(36, "data");
-  view.setUint32(40, numSamples * 2, true);
-
-  // 極低音量 1000Hz sine wave
-  const volume = 0.00001;
-  const frequency = 1000;
-
-  for (let i = 0; i < numSamples; i++) {
-    const sample =
-      Math.sin((2 * Math.PI * frequency * i) / sampleRate) * volume;
-
-    view.setInt16(44 + i * 2, sample * 32767, true);
-  }
-
-  return new Blob([buffer], {
-    type: "audio/wav",
-  });
-};
-
 const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const [book, setBook] = useState<Book | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -132,20 +85,6 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
   const [readingIndex, setReadingIndex] = useState<number | null>(null);
   const isReadingRef = useRef(false);
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [audioSrc, setAudioSrc] = useState<string>("");
-
-  useEffect(() => {
-    const blob = createBackgroundAudio();
-    const url = URL.createObjectURL(blob);
-
-    setAudioSrc(url);
-
-    return () => {
-      URL.revokeObjectURL(url);
-    };
-  }, []);
 
   const [showSearchPage, setShowSearchPage] = useState(false);
   const [searchInput, setSearchInput] = useState("");
@@ -494,316 +433,6 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
     } catch {}
   }, []);
 
-  const goToPreviousReadingChapter = useCallback(() => {
-    if (!book?.chapters?.length) return;
-
-    // 先立刻停止目前這一章的 TTS
-    isReadingRef.current = false;
-
-    try {
-      window.speechSynthesis.cancel();
-    } catch {}
-
-    // 使用原本的上一章功能
-    goToPrevChapter();
-
-    const prevChapter = Math.max(0, currentChapterIndex - 1);
-
-    const paraIdx = paragraphs.findIndex((p) => p.chapterIndex === prevChapter);
-
-    if (paraIdx < 0) return;
-
-    // 開始新的章節朗讀
-    isReadingRef.current = true;
-    setIsReading(true);
-    setReadingIndex(paraIdx);
-
-    speakParagraph(paraIdx);
-  }, [book?.chapters?.length, currentChapterIndex, paragraphs, speakParagraph]);
-
-  const goToNextReadingChapter = useCallback(() => {
-    if (!book?.chapters?.length) return;
-
-    // 先立刻停止目前這一章的 TTS
-    isReadingRef.current = false;
-
-    try {
-      window.speechSynthesis.cancel();
-    } catch {}
-
-    // 使用原本的下一章功能
-    goToNextChapter();
-
-    const nextChapter = Math.min(
-      book.chapters.length - 1,
-      currentChapterIndex + 1,
-    );
-
-    const paraIdx = paragraphs.findIndex((p) => p.chapterIndex === nextChapter);
-
-    if (paraIdx < 0) return;
-
-    // 開始新的章節朗讀
-    isReadingRef.current = true;
-    setIsReading(true);
-    setReadingIndex(paraIdx);
-
-    speakParagraph(paraIdx);
-  }, [book?.chapters?.length, currentChapterIndex, paragraphs, speakParagraph]);
-
-  const setupMediaSession = useCallback(() => {
-    if (!("mediaSession" in navigator)) {
-      console.log("❌ MediaSession 不支援");
-      return;
-    }
-
-    console.log("🎛️ setup MediaSession");
-
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: book?.title ?? "聽書",
-      artist: "聽書",
-      album: "閱讀",
-    });
-
-    try {
-      // navigator.mediaSession.setActionHandler("play", () => {
-      //   console.log("🎛️ MediaSession PLAY");
-
-      //   const audio = audioRef.current;
-
-      //   audio?.play().catch((error) => {
-      //     console.error("MediaSession audio play failed:", error);
-      //   });
-
-      //   try {
-      //     window.speechSynthesis.resume();
-      //   } catch {}
-
-      //   isReadingRef.current = true;
-      //   setIsReading(true);
-      // });
-      navigator.mediaSession.setActionHandler("play", () => {
-        const audio = audioRef.current;
-
-        isReadingRef.current = true;
-        setIsReading(true);
-
-        if (audio) {
-          audio.play().catch(() => {});
-        }
-
-        try {
-          window.speechSynthesis.resume();
-        } catch {}
-
-        // 如果 TTS 已經完全停止，重新從目前段落開始
-        if (
-          readingIndex != null &&
-          window.speechSynthesis.speaking === false &&
-          window.speechSynthesis.pending === false
-        ) {
-          speakParagraph(readingIndex);
-        }
-
-        navigator.mediaSession.playbackState = "playing";
-      });
-    } catch (error) {
-      console.error("MediaSession play handler failed:", error);
-    }
-
-    try {
-      navigator.mediaSession.setActionHandler("pause", () => {
-        console.log("🎛️ MediaSession PAUSE");
-
-        const audio = audioRef.current;
-
-        audio?.pause();
-
-        try {
-          window.speechSynthesis.pause();
-        } catch {}
-
-        setIsReading(false);
-      });
-    } catch (error) {
-      console.error("MediaSession pause handler failed:", error);
-    }
-
-    try {
-      navigator.mediaSession.setActionHandler("previoustrack", () => {
-        console.log("🎛️ MediaSession PREVIOUS");
-        goToPreviousReadingChapter();
-      });
-    } catch (error) {
-      console.error("MediaSession previous handler failed:", error);
-    }
-
-    try {
-      navigator.mediaSession.setActionHandler("nexttrack", () => {
-        console.log("🎛️ MediaSession NEXT");
-        goToNextReadingChapter();
-      });
-    } catch (error) {
-      console.error("MediaSession next handler failed:", error);
-    }
-
-    navigator.mediaSession.playbackState = "playing";
-  }, [book?.title, goToPreviousReadingChapter, goToNextReadingChapter]);
-
-  const startAudioReading = useCallback(() => {
-    if (!paragraphs.length) return;
-
-    const audio = audioRef.current;
-
-    if (!audio) {
-      console.error("找不到 audio");
-      return;
-    }
-
-    const startIdx = findParagraphAtScroll(
-      containerRef.current?.scrollTop ?? 0,
-    );
-
-    isReadingRef.current = true;
-    setIsReading(true);
-    setReadingIndex(startIdx);
-
-    // 先建立 MediaSession
-    setupMediaSession();
-
-    // Audio Session
-    if ("audioSession" in navigator) {
-      try {
-        (navigator as any).audioSession.type = "playback";
-      } catch (error) {
-        console.log("audioSession 設定失敗", error);
-      }
-    }
-
-    // 播放背景音訊
-    audio
-      .play()
-      .then(() => {
-        if ("mediaSession" in navigator) {
-          navigator.mediaSession.playbackState = "playing";
-        }
-      })
-      .catch(() => {});
-
-    // 開始 TTS
-    speakParagraph(startIdx);
-  }, [
-    paragraphs.length,
-    findParagraphAtScroll,
-    speakParagraph,
-    setupMediaSession,
-  ]);
-
-  const stopAudioReading = useCallback(() => {
-    isReadingRef.current = false;
-    setIsReading(false);
-    setReadingIndex(null);
-
-    try {
-      window.speechSynthesis.cancel();
-    } catch {}
-
-    const audio = audioRef.current;
-
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-
-    if ("mediaSession" in navigator) {
-      navigator.mediaSession.playbackState = "none";
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!("mediaSession" in navigator)) return;
-    if (!book || readingIndex == null) return;
-
-    const chapterIndex = paragraphs[readingIndex]?.chapterIndex ?? 0;
-    const chapterTitle = book.chapters?.[chapterIndex]?.title ?? "閱讀";
-
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: chapterTitle,
-      artist: book.title,
-      album: "聽書",
-    });
-
-    try {
-      navigator.mediaSession.setActionHandler("play", () => {
-        const audio = audioRef.current;
-
-        audio?.play().catch(() => {});
-
-        try {
-          window.speechSynthesis.resume();
-        } catch {}
-
-        isReadingRef.current = true;
-        setIsReading(true);
-      });
-    } catch {}
-
-    try {
-      navigator.mediaSession.setActionHandler("pause", () => {
-        const audio = audioRef.current;
-
-        audio?.pause();
-
-        try {
-          window.speechSynthesis.pause();
-        } catch {}
-
-        setIsReading(false);
-      });
-    } catch {}
-
-    try {
-      navigator.mediaSession.setActionHandler("previoustrack", () => {
-        goToPreviousReadingChapter();
-      });
-    } catch {}
-
-    try {
-      navigator.mediaSession.setActionHandler("nexttrack", () => {
-        goToNextReadingChapter();
-      });
-    } catch {}
-
-    navigator.mediaSession.playbackState = isReading ? "playing" : "paused";
-  }, [
-    book,
-    paragraphs,
-    readingIndex,
-    isReading,
-    goToPreviousReadingChapter,
-    goToNextReadingChapter,
-  ]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleTimeUpdate = () => {
-      if (!isReadingRef.current) return;
-      if (!audio.duration) return;
-
-      if (audio.currentTime >= audio.duration - 0.15) {
-        audio.currentTime = 0;
-      }
-    };
-
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-
-    return () => {
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-    };
-  }, []);
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedKeyword(searchInput.trim());
@@ -1061,7 +690,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
             <div
               className="reader-tts-btn"
               onClick={() => {
-                startAudioReading();
+                startReadingFromScreenTop();
               }}
             >
               <FiHeadphones />
@@ -1070,7 +699,7 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
             <div
               className="reader-tts-btn"
               onClick={() => {
-                stopAudioReading();
+                stopReading();
               }}
             >
               <BsStopCircle />
@@ -1078,7 +707,6 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
           )}
         </div>
       )}
-      <audio ref={audioRef} src={audioSrc} preload="auto" playsInline loop />
     </div>
   );
 };
