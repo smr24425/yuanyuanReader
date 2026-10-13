@@ -319,7 +319,8 @@ const Reader: React.FC<ReaderProps> = ({ bookId, onClose }) => {
       .replace(/\.{2,}/g, "") // 移除兩個以上的 ..
       .replace(/。{2,}/g, "") // 移除兩個以上的 。。
       .replace(/…+/g, "") // 移除中英文省略號 …
-      .replace(/\s+/g, " ");
+      .replace(/\s+/g, " ") // 移除多餘空白
+      .replace(/['"“”‘’]/g, ""); // 移除符號'
 
     // 2. 依照標點符號切割句子
     const sentences = cleanedText.split(/(?<=[。！？!?；;．.])/);
